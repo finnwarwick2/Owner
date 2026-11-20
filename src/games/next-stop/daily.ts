@@ -375,3 +375,13 @@ export function suggestCorrection(prompt: TriviaPrompt, rawAnswer: string): stri
   }
   return best ? displayCase(best) : null;
 }
+
+/**
+ * Days when everyone can keep playing after the daily 5 (unlimited mode).
+ * Dates are the player's local date, YYYY-MM-DD.
+ */
+export const UNLIMITED_PLAY_DATES: string[] = ['2026-11-20'];
+
+export function isUnlimitedPlayDay(dateKey: string = getLocalDateKey()): boolean {
+  return UNLIMITED_PLAY_DATES.includes(dateKey);
+}

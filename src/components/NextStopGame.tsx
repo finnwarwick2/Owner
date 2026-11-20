@@ -4,6 +4,7 @@ import { soundEngine } from '../audio/soundEngine';
 import {
   createUnlimitedPromptDeck,
   getLocalDateKey,
+  isUnlimitedPlayDay,
   pickDailyPrompts,
   suggestCorrection,
 } from '../games/next-stop/daily';
@@ -69,7 +70,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
   const [unlocked, setUnlocked] = useState(() =>
     edition === 'next-stop-europe' ? isEuropeUnlocked() : true,
   );
-  const canUseUnlimited = edition === 'next-stop' && isDevMode();
+  const canUseUnlimited = edition === 'next-stop' && (isDevMode() || isUnlimitedPlayDay());
   const [playMode, setPlayMode] = useState<'daily' | 'unlimited'>(() =>
     canUseUnlimited && launchMode === 'unlimited' ? 'unlimited' : 'daily',
   );
@@ -447,7 +448,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
             <div>
               <p className="text-[11px] font-pixel text-[#ffb000] mb-1 flex items-center gap-1.5">
                 <InfinityIcon className="w-3.5 h-3.5" />
-                NEXT STOP · DEV UNLIMITED MODE
+                NEXT STOP · UNLIMITED (TODAY ONLY)
               </p>
               <h1 className="text-lg sm:text-2xl font-pixel text-[#f2ebdd] leading-snug">
                 <span className="text-[#ffb000] tabular-nums">
@@ -465,7 +466,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
             </div>
 
             <div className="bg-[#16161b] border-2 border-[#3a3a44] px-4 py-2.5 text-center shrink-0">
-              <div className="text-[10px] text-[#ffb000] font-pixel">DEV SANDBOX</div>
+              <div className="text-[10px] text-[#ffb000] font-pixel">BONUS PLAY</div>
               <div className="text-[11px] text-[#9a9386] mt-1">
                 Daily score untouched
               </div>
@@ -570,7 +571,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
   );
   const answeredTiers = currentRun.attempts.map((a) => a.tier);
   const editionBadge = isUnlimited
-    ? 'DEV UNLIMITED'
+    ? 'UNLIMITED'
     : edition === 'next-stop-europe'
       ? 'NEXT STOP EUROPE'
       : 'NEXT STOP';

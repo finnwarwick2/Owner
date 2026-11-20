@@ -14,6 +14,7 @@ import {
   type DailyDistributionResult,
 } from '../services/scoreDistribution';
 import { isDevMode, isEuropeUnlocked } from '../services/stripeCheckout';
+import { isUnlimitedPlayDay } from '../games/next-stop/daily';
 import type { PlayerProfile } from '../types/arcade';
 import { CrowdedTrainChart } from './CrowdedTrainChart';
 import { RouteMinimap } from './RouteMinimap';
@@ -111,6 +112,29 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
             </div>
           </div>
         </div>
+
+        {edition === 'next-stop' && isUnlimitedPlayDay() && onPlayUnlimited && (
+          <div
+            className="n64-panel border-[#ffb000] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+            data-testid="unlimited-today-banner"
+          >
+            <div>
+              <p className="text-sm font-pixel text-[#ffb000]">UNLIMITED PLAY IS ON TODAY</p>
+              <p className="text-xs text-[#c9c1b2] mt-1">
+                Keep answering new questions for as long as you like. Your daily score stays as it is.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onPlayUnlimited}
+              data-testid="unlimited-today-btn"
+              className="n64-btn bg-[#ffb000] text-[#1e1e24] px-5 py-3 text-xs font-pixel flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap"
+            >
+              <InfinityIcon className="w-4 h-4" />
+              KEEP PLAYING
+            </button>
+          </div>
+        )}
 
         {/* End-of-Day Crowded Train Bell Curve */}
         <CrowdedTrainChart
@@ -210,15 +234,15 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
               HOME
             </button>
 
-            {edition === 'next-stop' && isDevMode() && onPlayUnlimited && (
+            {edition === 'next-stop' && (isDevMode() || isUnlimitedPlayDay()) && onPlayUnlimited && (
               <button
                 type="button"
                 onClick={onPlayUnlimited}
                 data-testid="results-dev-unlimited-btn"
-                className="n64-btn bg-[#3a3a44] text-[#f2ebdd] px-5 py-3 text-xs font-pixel flex items-center gap-2 cursor-pointer whitespace-nowrap"
+                className="n64-btn bg-[#ffb000] text-[#1e1e24] px-5 py-3 text-xs font-pixel flex items-center gap-2 cursor-pointer whitespace-nowrap"
               >
                 <InfinityIcon className="w-4 h-4" />
-                DEV: UNLIMITED MODE
+                {isUnlimitedPlayDay() ? 'KEEP PLAYING · UNLIMITED TODAY' : 'DEV: UNLIMITED MODE'}
               </button>
             )}
           </div>
