@@ -84,7 +84,7 @@ const _targetGround = new THREE.Color();
 const SUNNY = {
   sky: '#ece4d2',
   fog: '#e2d9c6',
-  ground: '#5d5c56',
+  ground: '#7a786f',
 };
 
 function toBackground(obj: THREE.Object3D) {
@@ -118,6 +118,7 @@ export class NextStopSceneController {
   private arrivalSignHolder: THREE.Group;
   private sleepers: THREE.Mesh[] = [];
   private sceneryItems: SceneryItem[] = [];
+  private birds: { wingL: THREE.Object3D; wingR: THREE.Object3D; phase: number }[] = [];
   private skippedPlatforms: SkippedPlatformItem[] = [];
 
   // Active train
@@ -179,10 +180,10 @@ export class NextStopSceneController {
     this.camera.position.set(0, 2.9, 12.2);
     this.camera.lookAt(0, 1.55, 0);
 
-    const hemi = new THREE.HemisphereLight(THEME.creamDim, THEME.charcoal, 1.0);
+    const hemi = new THREE.HemisphereLight(THEME.cream, THEME.creamMuted, 1.35);
     hemi.layers.enableAll();
     this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(THEME.amberLight, 1.5);
+    const sun = new THREE.DirectionalLight(THEME.amberLight, 1.8);
     sun.position.set(9, 18, 12);
     sun.layers.enableAll();
     this.scene.add(sun);
@@ -230,7 +231,7 @@ export class NextStopSceneController {
 
     const nearGround = new THREE.Mesh(
       new THREE.PlaneGeometry(160, 20),
-      createN64Material({ color: '#4a4944', roughness: 0.92 }),
+      createN64Material({ color: '#6e6e78', roughness: 0.92 }),
     );
     nearGround.rotation.x = -Math.PI / 2;
     nearGround.position.set(0, -0.02, 7);
@@ -238,11 +239,12 @@ export class NextStopSceneController {
 
     this.buildSunnySky();
     this.buildCountryside();
+    this.buildWildlife();
 
     // Track ballast & continuous steel rails running along X (left <-> right)
     const ballast = new THREE.Mesh(
       new THREE.BoxGeometry(110, 0.16, 2.9),
-      createN64Material({ color: '#3b332d', roughness: 0.95 }),
+      createN64Material({ color: '#5a5048', roughness: 0.95 }),
     );
     ballast.position.set(0, 0.04, -1.6);
     this.scene.add(ballast);
@@ -272,7 +274,7 @@ export class NextStopSceneController {
     const buildPlatformDeck = (holder: THREE.Group, signTarget: THREE.Group) => {
       const slab = new THREE.Mesh(
         new THREE.BoxGeometry(16, 0.36, 3.6),
-        createN64Material({ color: '#475569', roughness: 0.88 }),
+        createN64Material({ color: '#8a8a94', roughness: 0.88 }),
       );
       slab.position.set(0, 0.16, 1.8);
       const yellowLine = new THREE.Mesh(
@@ -434,6 +436,97 @@ export class NextStopSceneController {
       toBackground(obj);
       this.scene.add(obj);
       this.sceneryItems.push({ group: obj, x, speedFactor: 0.82, span: 96 });
+    }
+  }
+
+  private buildWildlife() {
+    const mat = (color: string) => createN64Material({ color, roughness: 0.9 });
+    const cream = mat('#f2ebdd');
+    const charcoal = mat('#1e1e24');
+    const grey = mat('#8a8478');
+    const brown = mat('#5c3c00');
+    const box = (w: number, h: number, d: number, m: THREE.Material, x: number, y: number, z: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+      mesh.position.set(x, y, z);
+      return mesh;
+    };
+    const legs = (g: THREE.Group, w: number, d: number, h: number, m: THREE.Material) => {
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) g.add(box(0.1, h, 0.1, m, sx * w, h / 2, sz * d));
+    };
+    const sheep = () => {
+      const g = new THREE.Group();
+      g.add(box(0.9, 0.55, 0.55, cream, 0, 0.6, 0));
+      g.add(box(0.28, 0.3, 0.3, charcoal, 0.55, 0.75, 0));
+      legs(g, 0.3, 0.17, 0.35, charcoal);
+      return g;
+    };
+    const cow = () => {
+      const g = new THREE.Group();
+      g.add(box(1.5, 0.75, 0.7, cream, 0, 0.95, 0));
+      g.add(box(0.55, 0.45, 0.72, charcoal, -0.25, 1.05, 0));
+      g.add(box(0.4, 0.42, 0.42, cream, 0.92, 1.1, 0));
+      g.add(box(0.14, 0.12, 0.44, charcoal, 1.12, 1.0, 0));
+      legs(g, 0.55, 0.24, 0.6, charcoal);
+      return g;
+    };
+    const rabbit = () => {
+      const g = new THREE.Group();
+      g.add(box(0.36, 0.26, 0.24, grey, 0, 0.16, 0));
+      g.add(box(0.18, 0.18, 0.18, grey, 0.2, 0.32, 0));
+      g.add(box(0.05, 0.22, 0.06, grey, 0.18, 0.5, 0.04));
+      g.add(box(0.05, 0.22, 0.06, grey, 0.23, 0.5, -0.04));
+      g.add(box(0.08, 0.08, 0.08, cream, -0.2, 0.2, 0));
+      return g;
+    };
+    const horse = () => {
+      const g = new THREE.Group();
+      g.add(box(1.4, 0.6, 0.5, brown, 0, 1.15, 0));
+      g.add(box(0.3, 0.65, 0.3, brown, 0.72, 1.5, 0));
+      g.add(box(0.5, 0.25, 0.26, brown, 0.95, 1.75, 0));
+      g.add(box(0.12, 0.5, 0.08, charcoal, 0.62, 1.55, 0));
+      legs(g, 0.5, 0.17, 0.85, charcoal);
+      return g;
+    };
+
+    const herd: Array<[() => THREE.Group, number, number, number]> = [
+      // builder, x, z, facing (1 = right, -1 = left)
+      [sheep, -40, -10.2, 1], [sheep, -38.6, -10.8, -1], [sheep, -37.4, -9.9, 1],
+      [cow, -27, -15.4, -1], [cow, -24.6, -16.2, 1],
+      [rabbit, -18, -8.4, 1], [rabbit, -17.2, -8.9, -1],
+      [sheep, -6, -15.8, -1], [sheep, -4.8, -16.3, 1], [sheep, -3.5, -15.6, 1], [sheep, -2.4, -16.1, -1],
+      [horse, 8, -11.2, 1],
+      [cow, 17, -20.2, 1], [cow, 19.5, -20.6, -1], [cow, 21.4, -19.8, 1],
+      [rabbit, 27, -9.1, -1],
+      [sheep, 34, -11.4, 1], [sheep, 35.3, -10.8, -1],
+      [horse, 44, -15.6, -1],
+    ];
+    for (const [make, x, z, face] of herd) {
+      const a = make();
+      a.rotation.y = face > 0 ? 0 : Math.PI;
+      a.position.set(x, 0, z);
+      toBackground(a);
+      this.scene.add(a);
+      this.sceneryItems.push({ group: a, x, speedFactor: 0.6, span: 100.8 });
+    }
+
+    // A few birds wheeling over the fields
+    for (let i = 0; i < 7; i++) {
+      const g = new THREE.Group();
+      g.add(box(0.28, 0.12, 0.12, charcoal, 0, 0, 0));
+      const wingL = new THREE.Group();
+      wingL.add(box(0.5, 0.05, 0.16, charcoal, -0.25, 0, 0));
+      wingL.position.x = -0.12;
+      const wingR = new THREE.Group();
+      wingR.add(box(0.5, 0.05, 0.16, charcoal, 0.25, 0, 0));
+      wingR.position.x = 0.12;
+      g.add(wingL, wingR);
+      const x = -40 + i * 13;
+      g.position.set(x, 6.5 + (i % 3) * 1.4, -16 - (i % 2) * 6);
+      g.scale.setScalar(1.3);
+      toBackground(g);
+      this.scene.add(g);
+      this.birds.push({ wingL, wingR, phase: i * 1.7 });
+      this.sceneryItems.push({ group: g, x, speedFactor: 0.25, span: 91 });
     }
   }
 
@@ -695,6 +788,11 @@ export class NextStopSceneController {
   };
 
   private stepSimulation(dt: number, elapsed: number) {
+    for (const b of this.birds) {
+      const flap = Math.sin(elapsed * 9 + b.phase) * 0.7;
+      b.wingL.rotation.z = flap;
+      b.wingR.rotation.z = -flap;
+    }
     if (this.trauma > 0) {
       this.trauma = Math.max(0, this.trauma - dt * 1.8);
     }
@@ -867,7 +965,7 @@ export class NextStopSceneController {
             0,
             0.45,
             0.38,
-            this.activeTier === 'LEGENDARY' ? '#22d3ee' : '#facc15',
+            this.activeTier === 'LEGENDARY' ? '#ffd27a' : '#9d6bff',
           );
         } else {
           this.spawnParticle(

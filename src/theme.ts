@@ -50,6 +50,16 @@ export function scenePaletteFor(edition: GameEdition): string[] {
     THEME.cream,
     accentDark,
     accent,
+    // Tier train colours and extra greys so the scene stays bright and colourful.
+    '#e5484d',
+    '#8e1828',
+    '#9d6bff',
+    '#5b3a9e',
+    '#7cc8f0',
+    '#3b7ea8',
+    '#a8a49a',
+    '#5a5a62',
+    '#6e6e78',
   ];
 }
 

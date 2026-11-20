@@ -339,3 +339,39 @@ export function evaluateLocalAnswer(
     source: 'local',
   };
 }
+
+function displayCase(answer: string): string {
+  return answer.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+}
+
+/**
+ * If the typed answer looks like a misspelling of a known answer, returns the
+ * correctly spelled answer (for the player to confirm). Returns null when the
+ * answer is already spelled like a known answer or nothing is close enough.
+ */
+export function suggestCorrection(prompt: TriviaPrompt, rawAnswer: string): string | null {
+  const norm = normalizeAnswer(rawAnswer);
+  if (norm.length < 3) return null;
+  const squash = (s: string) => s.replace(/ /g, '');
+  const all = [
+    ...prompt.answers.rare,
+    ...prompt.answers.uncommon,
+    ...prompt.answers.fakeDeep,
+    ...prompt.answers.common,
+  ];
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const cand of all) {
+    const n = normalizeAnswer(cand);
+    if (!n) continue;
+    if (n === norm || squash(n) === squash(norm)) return null;
+    const maxDist = n.length >= 9 ? 3 : n.length >= 6 ? 2 : n.length >= 4 ? 1 : 0;
+    if (!maxDist || Math.abs(n.length - norm.length) > maxDist) continue;
+    const d = levenshtein(norm, n);
+    if (d <= maxDist && d < bestDist) {
+      bestDist = d;
+      best = cand;
+    }
+  }
+  return best ? displayCase(best) : null;
+}

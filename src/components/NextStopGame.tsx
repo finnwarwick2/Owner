@@ -5,6 +5,7 @@ import {
   createUnlimitedPromptDeck,
   getLocalDateKey,
   pickDailyPrompts,
+  suggestCorrection,
 } from '../games/next-stop/daily';
 import { EUROPE_PROMPT_BANK } from '../games/next-stop/europePrompts';
 import { judgeAnswer } from '../games/next-stop/judgeClient';
@@ -32,6 +33,7 @@ import type { GamePlayProps } from '../types/arcade';
 import { EuropePaywallScreen } from './EuropePaywallScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { RouteMinimap } from './RouteMinimap';
+import { JourneyMinimap } from './JourneyMinimap';
 
 type GamePhase =
   | 'prompt'
@@ -111,6 +113,8 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
   const [secondsLeft, setSecondsLeft] = useState(PROMPT_TIME_SECONDS);
   const [scrambleText, setScrambleText] = useState('CHECKING TIMETABLE...');
   const [judgeResult, setJudgeResult] = useState<JudgeResult | null>(null);
+  const [correction, setCorrection] = useState<{ typed: string; suggestion: string } | null>(null);
+  const useCorrectionRef = useRef<HTMLButtonElement | null>(null);
   const [liveStationFloat, setLiveStationFloat] = useState(() =>
     isUnlimited ? 0 : currentRun.totalStations,
   );
@@ -249,6 +253,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     soundEngine.playStationChime();
     setSecondsLeft(PROMPT_TIME_SECONDS);
     setAnswerText('');
+    setCorrection(null);
     setJudgeResult(null);
     setLiveStationFloat(baseStations);
     submittingRef.current = false;
@@ -260,11 +265,12 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
   }, [hasCanvas, phase, promptIdx, baseStations, edition, isUnlimited]);
 
   const handleSubmitAnswer = useCallback(
-    async (timedOut: boolean) => {
+    async (timedOut: boolean, override?: string) => {
       if (submittingRef.current || phase !== 'prompt' || !activePrompt) return;
       submittingRef.current = true;
+      setCorrection(null);
 
-      const submitted = answerText.trim();
+      const submitted = (override ?? answerText).trim();
       setPhase('suspense');
 
       const flipInterval = window.setInterval(() => {
@@ -369,6 +375,17 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
       setPhase('prompt');
     }
   }, [dateKey, edition, isUnlimited, unlimitedDeck.length]);
+
+  // Move straight on to the next question (or the results) after arriving.
+  useEffect(() => {
+    if (phase !== 'arrived') return;
+    const id = window.setTimeout(() => handleAdvanceAfterArrival(), 1700);
+    return () => window.clearTimeout(id);
+  }, [phase, handleAdvanceAfterArrival]);
+
+  useEffect(() => {
+    if (correction) useCorrectionRef.current?.focus();
+  }, [correction]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -546,6 +563,12 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
   const minimapCurrent = phase === 'arrived' ? baseStations : liveStationFloat;
   const currentStationInfo = getStationInfo(edition, minimapCurrent, isUnlimited);
   const currentBiome = getBiomeForStation(edition, minimapCurrent, isUnlimited);
+  const answeredCount = currentRun.attempts.length;
+  const questionNumber = Math.min(
+    dailyPrompts.length,
+    Math.max(1, answeredCount + (phase === 'arrived' ? 0 : 1)),
+  );
+  const answeredTiers = currentRun.attempts.map((a) => a.tier);
   const editionBadge = isUnlimited
     ? 'DEV UNLIMITED'
     : edition === 'next-stop-europe'
@@ -604,7 +627,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
               </span>
               {isUnlimited
                 ? `#${unlimitedAttempts.length + (phase === 'arrived' ? 0 : 1)} · ${baseStations} STN (${baseStations * POINTS_PER_STATION} PTS)`
-                : `${promptIdx + 1}/5 · ${baseStations} STN (${baseStations * POINTS_PER_STATION} PTS)`}
+                : `Q${questionNumber}/${dailyPrompts.length} · ${baseStations} STN (${baseStations * POINTS_PER_STATION} PTS)`}
             </div>
 
             {phase === 'prompt' && (
@@ -636,13 +659,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
           </div>
 
           <div className="flex items-start gap-2 pointer-events-auto">
-            <RouteMinimap
-              edition={edition}
-              baseStations={minimapBase}
-              currentStation={minimapCurrent}
-              variant="compact"
-              unlimited={isUnlimited}
-            />
+
             <button
               type="button"
               onClick={onToggleMute}
@@ -674,16 +691,91 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
           </div>
         )}
 
+        {!isUnlimited && (
+          <div className="hidden xl:block absolute right-5 bottom-5 pointer-events-none">
+            <JourneyMinimap
+              answeredTiers={answeredTiers}
+              questionNumber={questionNumber}
+              totalQuestions={dailyPrompts.length}
+              currentStation={minimapCurrent}
+              stationName={currentStationInfo.name}
+            />
+          </div>
+        )}
+
         {/* Bottom Zone: Input OR Tier Reveal OR Arrival Card */}
         <div className="w-full max-w-xl mx-auto pointer-events-auto">
+          {!isUnlimited && (
+            <div className="xl:hidden mb-2 pointer-events-none">
+              <JourneyMinimap
+                compact
+                answeredTiers={answeredTiers}
+                questionNumber={questionNumber}
+                totalQuestions={dailyPrompts.length}
+                currentStation={minimapCurrent}
+                stationName={currentStationInfo.name}
+              />
+            </div>
+          )}
           {phase === 'prompt' && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
+                if (correction) return;
+                const suggestion = activePrompt ? suggestCorrection(activePrompt, answerText) : null;
+                if (suggestion) {
+                  soundEngine.playUiClick();
+                  setCorrection({ typed: answerText.trim(), suggestion });
+                  return;
+                }
                 void handleSubmitAnswer(false);
               }}
-              className="n64-panel p-2.5 flex flex-col sm:flex-row gap-2"
+              className="relative n64-panel p-2.5 flex flex-col sm:flex-row gap-2"
             >
+              {correction && (
+                <div
+                  className="absolute inset-x-0 bottom-0 z-10 bg-[#16161b] border-4 border-[#ffb000] p-3 shadow-[0_6px_0_#0e0e12]"
+                  role="dialog"
+                  aria-label="Spelling check"
+                  data-testid="spelling-check"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setCorrection(null);
+                      inputRef.current?.focus();
+                    }
+                  }}
+                >
+                  <div className="text-[10px] font-pixel text-[#c9c1b2] mb-1.5">DID YOU MEAN?</div>
+                  <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-3">
+                    <span className="font-sans font-semibold text-base text-[#9a9386] line-through decoration-[#e5484d] decoration-[3px]">
+                      {correction.typed}
+                    </span>
+                    <span className="font-sans font-bold text-xl text-[#ffb000]">{correction.suggestion}</span>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <button
+                      type="button"
+                      ref={useCorrectionRef}
+                      data-testid="use-correction-btn"
+                      onClick={() => {
+                        setAnswerText(correction.suggestion);
+                        void handleSubmitAnswer(false, correction.suggestion);
+                      }}
+                      className="n64-btn flex-1 bg-[#ffb000] text-[#1e1e24] px-4 py-2.5 text-xs font-pixel cursor-pointer min-h-[44px]"
+                    >
+                      USE "{correction.suggestion.toUpperCase()}"
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="keep-answer-btn"
+                      onClick={() => void handleSubmitAnswer(false, correction.typed)}
+                      className="n64-btn bg-[#3a3a44] text-[#f2ebdd] px-4 py-2.5 text-xs font-pixel cursor-pointer min-h-[44px]"
+                    >
+                      KEEP MINE
+                    </button>
+                  </div>
+                </div>
+              )}
               <label htmlFor="next-stop-answer" className="sr-only">
                 Your answer
               </label>
@@ -755,9 +847,9 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                 >
                   {isUnlimited
                     ? `NEXT PROMPT (#${unlimitedAttempts.length + 1})`
-                    : promptIdx >= dailyPrompts.length - 1
+                    : answeredCount >= dailyPrompts.length
                       ? 'VIEW CROWDED TRAIN RESULTS'
-                      : `NEXT PROMPT (${promptIdx + 2}/5)`}
+                      : `NEXT QUESTION (${answeredCount + 1}/${dailyPrompts.length})`}
                 </button>
                 {isUnlimited && (
                   <button

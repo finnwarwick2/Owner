@@ -259,7 +259,7 @@ export function buildCharacterModel(
 
   const head = new THREE.Mesh(
     new THREE.BoxGeometry(0.44, 0.42, 0.42),
-    createN64Material({ color: '#f4c7a1', roughness: 0.78 }),
+    createN64Material({ color: '#ffd27a', roughness: 0.78 }),
   );
   headGroup.add(head);
 
@@ -298,21 +298,20 @@ function getLiveryColors(
   tier: RarityTier,
   _liveryId: TrainLiveryId,
 ): { primary: string; secondary: string; roof: string } {
-  // Strict palette liveries: charcoal / amber / cream / accent only.
+  // One colour per answer level: grey, light blue, red, purple, gold.
   switch (tier) {
     case 'INVALID':
       return { primary: '#44444f', secondary: '#d72638', roof: '#2e2e37' };
     case 'COMMON':
-      // Shabby weathered branch-line stopping service
-      return { primary: '#44444f', secondary: '#8a8478', roof: '#2e2e37' };
+      return { primary: '#a8a49a', secondary: '#5a5a62', roof: '#5a5a62' };
     case 'FAKE_DEEP':
-      return { primary: '#2e2e37', secondary: '#a86f00', roof: '#5c3c00' };
+      return { primary: '#7cc8f0', secondary: '#f2ebdd', roof: '#3b7ea8' };
     case 'UNCOMMON':
-      return { primary: '#c9c1b2', secondary: '#a86f00', roof: '#44444f' };
+      return { primary: '#e5484d', secondary: '#f2ebdd', roof: '#8e1828' };
     case 'RARE':
-      return { primary: '#1e1e24', secondary: '#ffb000', roof: '#44444f' };
+      return { primary: '#9d6bff', secondary: '#f2ebdd', roof: '#5b3a9e' };
     case 'LEGENDARY':
-      return { primary: '#f2ebdd', secondary: '#ffb000', roof: '#ffd27a' };
+      return { primary: '#ffb000', secondary: '#f2ebdd', roof: '#ffd27a' };
   }
 }
 
@@ -875,7 +874,7 @@ export function buildIntermediatePlatformProp(
     coat.position.set(px, 0.7, 0.35);
     const head = new THREE.Mesh(
       new THREE.BoxGeometry(0.24, 0.24, 0.24),
-      createN64Material({ color: '#f4c7a1', roughness: 0.8 }),
+      createN64Material({ color: '#ffd27a', roughness: 0.8 }),
     );
     head.position.set(px, 1.08, 0.35);
     g.add(coat, head);

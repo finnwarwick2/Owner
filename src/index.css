@@ -147,3 +147,25 @@
 @media (prefers-reduced-motion: reduce) {
   .home-train { animation: none; display: none; }
 }
+
+/* Home screen countryside parallax */
+.home-countryside {
+  background: linear-gradient(#cfc7b6 0%, #e6ddca 45%, #f2ebdd 100%);
+}
+.home-layer {
+  width: 200%;
+  animation: home-pan linear infinite;
+}
+.home-clouds { animation-duration: 160s; }
+.home-far { animation-duration: 120s; }
+.home-near { animation-duration: 60s; }
+.home-fields { animation-duration: 28s; }
+@keyframes home-pan {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.home-sun-rays { animation: home-spin 40s linear infinite; }
+@keyframes home-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .home-layer, .home-sun-rays { animation: none; }
+}

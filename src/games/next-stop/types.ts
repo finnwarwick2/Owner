@@ -48,9 +48,9 @@ export const TRAIN_SPECS: Record<RarityTier, TrainSpec> = {
     points: 10,
     speedMps: 11,
     rideDurationSec: 3.1,
-    accentHex: '#8a8478',
-    bodyHex: '#44444f',
-    roofHex: '#2e2e37',
+    accentHex: '#a8a49a',
+    bodyHex: '#5a5a62',
+    roofHex: '#5a5a62',
     description: 'Shabby old railbus — 1 station (10 pts)',
   },
   FAKE_DEEP: {
@@ -61,9 +61,9 @@ export const TRAIN_SPECS: Record<RarityTier, TrainSpec> = {
     points: 20,
     speedMps: 15,
     rideDurationSec: 3.6,
-    accentHex: '#a86f00',
-    bodyHex: '#2e2e37',
-    roofHex: '#5c3c00',
+    accentHex: '#7cc8f0',
+    bodyHex: '#3b7ea8',
+    roofHex: '#3b7ea8',
     description: 'Cliché clever pick — 2 stations (20 pts)',
   },
   UNCOMMON: {
@@ -74,9 +74,9 @@ export const TRAIN_SPECS: Record<RarityTier, TrainSpec> = {
     points: 40,
     speedMps: 22,
     rideDurationSec: 4.3,
-    accentHex: '#c9c1b2',
-    bodyHex: '#c9c1b2',
-    roofHex: '#44444f',
+    accentHex: '#e5484d',
+    bodyHex: '#e5484d',
+    roofHex: '#8e1828',
     description: 'Brisk regional flyer — 4 stations (40 pts)',
   },
   RARE: {
@@ -87,9 +87,9 @@ export const TRAIN_SPECS: Record<RarityTier, TrainSpec> = {
     points: 60,
     speedMps: 31,
     rideDurationSec: 5.0,
-    accentHex: '#ffb000',
-    bodyHex: '#1e1e24',
-    roofHex: '#44444f',
+    accentHex: '#9d6bff',
+    bodyHex: '#9d6bff',
+    roofHex: '#5b3a9e',
     description: 'Sleek mainline express — 6 stations (60 pts)',
   },
   LEGENDARY: {
@@ -100,11 +100,21 @@ export const TRAIN_SPECS: Record<RarityTier, TrainSpec> = {
     points: 80,
     speedMps: 42,
     rideDurationSec: 5.7,
-    accentHex: '#ffd27a',
-    bodyHex: '#f2ebdd',
+    accentHex: '#ffb000',
+    bodyHex: '#ffb000',
     roofHex: '#ffd27a',
     description: 'Glowing non-stop bullet — 8 stations (80 pts)',
   },
+};
+
+/** Train colour for each of the 5 answer levels (gold = rarest, grey = most common). */
+export const TIER_COLORS: Record<RarityTier, string> = {
+  INVALID: '#44444f',
+  COMMON: '#a8a49a',
+  FAKE_DEEP: '#7cc8f0',
+  UNCOMMON: '#e5484d',
+  RARE: '#9d6bff',
+  LEGENDARY: '#ffb000',
 };
 
 export const ORDERED_TIERS: RarityTier[] = [

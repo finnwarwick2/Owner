@@ -86,20 +86,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   return (
     <div
-      className="relative w-full h-full overflow-y-auto dot-matrix-bg text-[#f2ebdd]"
+      className="relative w-full h-full overflow-y-auto bg-[#e2d9c6] text-[#f2ebdd]"
       data-testid="home-screen"
     >
+      <CountrysideBackdrop />
       <button
         type="button"
         onClick={onToggleMute}
         aria-label={muted ? 'Unmute audio' : 'Mute audio'}
-        className="absolute top-4 right-4 z-10 p-2 text-[#9a9386] hover:text-[#ffb000] cursor-pointer"
+        className="absolute top-4 right-4 z-20 p-2 bg-[#1e1e24] border-2 border-[#0e0e12] text-[#c9c1b2] hover:text-[#ffb000] cursor-pointer"
       >
         {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
       </button>
 
       <div className="min-h-full flex flex-col items-center justify-center px-6 pt-14 pb-36">
-        <div className="w-full max-w-md flex flex-col items-center text-center">
+        <div className="relative z-10 w-full max-w-md flex flex-col items-center text-center bg-[#1e1e24]/95 border-4 border-[#0e0e12] p-5 shadow-[0_8px_0_rgba(14,14,18,0.6)]">
           {/* Departure-board logo */}
           <div className="w-full bg-[#0e0e12] border-4 border-[#2a2a32] px-5 pt-4 pb-5 shadow-[0_8px_0_#0e0e12]">
             <div className="flex justify-between text-[10px] font-pixel text-[#6e695f] mb-3">
@@ -177,7 +178,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </div>
 
       {/* Big train crossing the bottom of the screen */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 overflow-hidden" aria-hidden="true">
+      <div className="pointer-events-none fixed bottom-0 left-0 right-0 z-[5] h-32 overflow-hidden" aria-hidden="true">
         {/* Rails and sleepers */}
         <div className="absolute bottom-3 left-0 right-0 h-[6px] bg-[#44444f]" />
         <div className="absolute bottom-0 left-0 right-0 h-3 bg-[repeating-linear-gradient(90deg,#2a2a32_0_14px,transparent_14px_34px)]" />
@@ -249,3 +250,80 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     </div>
   );
 };
+
+/** Sunny countryside that scrolls past behind the home screen. */
+const CountrysideBackdrop: React.FC = () => (
+  <div className="home-countryside pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden="true">
+    {/* Sun */}
+    <div className="absolute right-[12%] top-[9%] w-24 h-24">
+      <div className="home-sun-rays absolute -inset-6 rounded-full bg-[repeating-conic-gradient(#ffd27a_0deg_10deg,transparent_10deg_30deg)] opacity-80" />
+      <div className="absolute inset-0 rounded-full bg-[#ffd27a]" />
+      <div className="absolute inset-3 rounded-full bg-[#ffb000]" />
+    </div>
+    {/* Clouds */}
+    <div className="home-layer home-clouds absolute left-0 top-[14%] h-24">
+      <svg viewBox="0 0 1600 96" className="h-full w-full" preserveAspectRatio="none" shapeRendering="crispEdges">
+        <defs>
+          <pattern id="cloud-tile" width="800" height="96" patternUnits="userSpaceOnUse">
+            <g fill="#f2ebdd">
+              <rect x="60" y="40" width="140" height="24" /><rect x="90" y="24" width="70" height="20" />
+              <rect x="420" y="56" width="110" height="20" /><rect x="445" y="42" width="50" height="16" />
+              <rect x="640" y="20" width="120" height="22" /><rect x="665" y="8" width="56" height="14" />
+            </g>
+          </pattern>
+        </defs>
+        <rect width="1600" height="96" fill="url(#cloud-tile)" />
+      </svg>
+    </div>
+    {/* Far hills */}
+    <div className="home-layer home-far absolute left-0 bottom-[150px] h-44">
+      <svg viewBox="0 0 1600 176" className="h-full w-full" preserveAspectRatio="none">
+        <defs>
+          <pattern id="far-tile" width="800" height="176" patternUnits="userSpaceOnUse">
+            <path d="M0 120 Q100 30 200 96 T400 84 T600 60 T800 120 V176 H0Z" fill="#b9b2a3" />
+          </pattern>
+        </defs>
+        <rect width="1600" height="176" fill="url(#far-tile)" />
+      </svg>
+    </div>
+    {/* Near downs with trees */}
+    <div className="home-layer home-near absolute left-0 bottom-[110px] h-40">
+      <svg viewBox="0 0 1600 160" className="h-full w-full" preserveAspectRatio="none">
+        <defs>
+          <pattern id="near-tile" width="800" height="160" patternUnits="userSpaceOnUse">
+            <path d="M0 110 Q150 50 300 100 T600 92 T800 110 V160 H0Z" fill="#8a8478" />
+            <g fill="#44444f">
+              <path d="M140 84 l14 -34 l14 34z" /><rect x="151" y="84" width="6" height="10" />
+              <path d="M180 80 l12 -28 l12 28z" /><rect x="189" y="80" width="6" height="10" />
+              <path d="M520 92 l16 -38 l16 38z" /><rect x="533" y="92" width="6" height="10" />
+            </g>
+            <rect x="660" y="78" width="40" height="22" fill="#f2ebdd" />
+            <path d="M654 80 l26 -18 l26 18z" fill="#d72638" />
+          </pattern>
+        </defs>
+        <rect width="1600" height="160" fill="url(#near-tile)" />
+      </svg>
+    </div>
+    {/* Patchwork fields with hedges and sheep */}
+    <div className="home-layer home-fields absolute left-0 bottom-0 h-[130px]">
+      <svg viewBox="0 0 1600 130" className="h-full w-full" preserveAspectRatio="none" shapeRendering="crispEdges">
+        <defs>
+          <pattern id="field-tile" width="800" height="130" patternUnits="userSpaceOnUse">
+            <rect width="800" height="130" fill="#6e6e78" />
+            <rect x="0" y="6" width="230" height="50" fill="#ffb000" />
+            <rect x="0" y="16" width="230" height="6" fill="#a86f00" /><rect x="0" y="34" width="230" height="6" fill="#a86f00" />
+            <rect x="240" y="6" width="200" height="50" fill="#c9c1b2" />
+            <rect x="450" y="6" width="190" height="50" fill="#ffd27a" />
+            <rect x="450" y="22" width="190" height="5" fill="#ffb000" /><rect x="450" y="40" width="190" height="5" fill="#ffb000" />
+            <rect x="650" y="6" width="150" height="50" fill="#a8a49a" />
+            <rect x="0" y="0" width="800" height="6" fill="#2e2e37" />
+            <rect x="0" y="56" width="800" height="5" fill="#2e2e37" />
+            <g fill="#f2ebdd"><rect x="280" y="24" width="14" height="9" /><rect x="320" y="34" width="14" height="9" /><rect x="372" y="20" width="14" height="9" /><rect x="690" y="28" width="14" height="9" /></g>
+            <g fill="#1e1e24"><rect x="292" y="24" width="5" height="5" /><rect x="332" y="34" width="5" height="5" /><rect x="384" y="20" width="5" height="5" /><rect x="702" y="28" width="5" height="5" /></g>
+          </pattern>
+        </defs>
+        <rect width="1600" height="130" fill="url(#field-tile)" />
+      </svg>
+    </div>
+  </div>
+);
