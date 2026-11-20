@@ -82,10 +82,21 @@ const _targetGround = new THREE.Color();
 
 // Fixed sunny-countryside look for every station, in the game's charcoal / amber / cream palette.
 const SUNNY = {
-  sky: '#ece4d2',
-  fog: '#e2d9c6',
-  ground: '#7a786f',
+  sky: '#8cc8f0',
+  fog: '#cfe6f5',
+  ground: '#6aae4f',
 };
+
+/** Smooth hash-free pseudo noise that repeats every `period` units along x. */
+function periodicHeight(x: number, z: number, period: number, seed: number): number {
+  const k = (2 * Math.PI) / period;
+  return (
+    Math.sin(k * x + seed) * 0.5 +
+    Math.sin(2 * k * x + seed * 1.7 + z * 0.15) * 0.3 +
+    Math.sin(3 * k * x + seed * 0.6 - z * 0.22) * 0.18 +
+    Math.sin(5 * k * x + seed * 2.3 + z * 0.4) * 0.08
+  );
+}
 
 function toBackground(obj: THREE.Object3D) {
   obj.traverse((o) => o.layers.set(BACKGROUND_LAYER));
@@ -118,7 +129,8 @@ export class NextStopSceneController {
   private arrivalSignHolder: THREE.Group;
   private sleepers: THREE.Mesh[] = [];
   private sceneryItems: SceneryItem[] = [];
-  private birds: { wingL: THREE.Object3D; wingR: THREE.Object3D; phase: number }[] = [];
+  private birds: { group: THREE.Object3D; wingL: THREE.Object3D; wingR: THREE.Object3D; phase: number; vx: number; baseY: number }[] = [];
+  private waterfallTextures: THREE.Texture[] = [];
   private skippedPlatforms: SkippedPlatformItem[] = [];
 
   // Active train
@@ -171,19 +183,19 @@ export class NextStopSceneController {
 
     this.scene = new THREE.Scene();
     this.scene.background = this.skyColor;
-    this.scene.fog = new THREE.Fog(this.fogColor, 24, 70);
+    this.scene.fog = new THREE.Fog(this.fogColor, 40, 230);
     setupStudioEnvironment(this.renderer, this.scene);
 
     const w = Math.max(1, mountEl.clientWidth);
     const h = Math.max(1, mountEl.clientHeight);
-    this.camera = new THREE.PerspectiveCamera(42, w / h, 0.2, 95);
+    this.camera = new THREE.PerspectiveCamera(42, w / h, 0.2, 170);
     this.camera.position.set(0, 2.9, 12.2);
     this.camera.lookAt(0, 1.55, 0);
 
-    const hemi = new THREE.HemisphereLight(THEME.cream, THEME.creamMuted, 1.35);
+    const hemi = new THREE.HemisphereLight('#e4f3ff', '#7a9a55', 1.3);
     hemi.layers.enableAll();
     this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(THEME.amberLight, 1.8);
+    const sun = new THREE.DirectionalLight('#fff3d6', 1.75);
     sun.position.set(9, 18, 12);
     sun.layers.enableAll();
     this.scene.add(sun);
@@ -231,7 +243,7 @@ export class NextStopSceneController {
 
     const nearGround = new THREE.Mesh(
       new THREE.PlaneGeometry(160, 20),
-      createN64Material({ color: '#6e6e78', roughness: 0.92 }),
+      createN64Material({ color: '#6fae52', roughness: 0.92 }),
     );
     nearGround.rotation.x = -Math.PI / 2;
     nearGround.position.set(0, -0.02, 7);
@@ -308,84 +320,206 @@ export class NextStopSceneController {
   }
 
   private buildSunnySky() {
-    const tex = createCrispSignTexture(1024, 512, (ctx, w, h) => {
-      // Bright sky: pale at the horizon, a touch deeper overhead.
+    // The visible band of this texture is roughly 0.4–0.6 of its height.
+    const tex = createCrispSignTexture(1024, 1024, (ctx, w, h) => {
       const grad = ctx.createLinearGradient(0, 0, 0, h);
-      grad.addColorStop(0.3, '#c9c1b2');
-      grad.addColorStop(0.5, '#e6ddca');
-      grad.addColorStop(0.6, SUNNY.fog);
-      grad.addColorStop(1, SUNNY.fog);
+      grad.addColorStop(0, '#1d5fb0');
+      grad.addColorStop(0.4, '#3d8fdc');
+      grad.addColorStop(0.52, '#74b9ef');
+      grad.addColorStop(0.6, '#bfe3f8');
+      grad.addColorStop(1, '#d8eefb');
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, w, h);
 
-      // Sun with rays
-      const sx = w * 0.63;
-      const sy = h * 0.455;
-      ctx.strokeStyle = '#ffd27a';
-      ctx.lineWidth = 6;
-      for (let i = 0; i < 12; i++) {
-        const a = (i / 12) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(sx + Math.cos(a) * 38, sy + Math.sin(a) * 38);
-        ctx.lineTo(sx + Math.cos(a) * 54, sy + Math.sin(a) * 54);
-        ctx.stroke();
-      }
-      ctx.fillStyle = '#ffd27a';
+      const sx = w * 0.62;
+      const sy = h * 0.465;
+      const glow = ctx.createRadialGradient(sx, sy, 10, sx, sy, 90);
+      glow.addColorStop(0, 'rgba(255, 244, 190, 0.95)');
+      glow.addColorStop(1, 'rgba(255, 244, 190, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(sx - 90, sy - 90, 180, 180);
+      ctx.fillStyle = '#fff2a8';
       ctx.beginPath();
-      ctx.arc(sx, sy, 30, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 24, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#ffb000';
+      ctx.fillStyle = '#ffd84a';
       ctx.beginPath();
-      ctx.arc(sx, sy, 22, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 18, 0, Math.PI * 2);
       ctx.fill();
 
-      // Fair-weather clouds
-      const cloud = (cx: number, cy: number, s: number) => {
-        ctx.fillStyle = '#f2ebdd';
+      const cloud = (cx: number, cy: number, k: number) => {
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.ellipse(cx, cy, 60 * s, 18 * s, 0, 0, Math.PI * 2);
-        ctx.ellipse(cx - 26 * s, cy - 12 * s, 28 * s, 20 * s, 0, 0, Math.PI * 2);
-        ctx.ellipse(cx + 18 * s, cy - 18 * s, 32 * s, 24 * s, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy, 46 * k, 11 * k, 0, 0, Math.PI * 2);
+        ctx.arc(cx - 20 * k, cy - 7 * k, 14 * k, 0, Math.PI * 2);
+        ctx.arc(cx + 4 * k, cy - 14 * k, 19 * k, 0, Math.PI * 2);
+        ctx.arc(cx + 26 * k, cy - 6 * k, 13 * k, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#dcecf8';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + 5 * k, 42 * k, 5 * k, 0, 0, Math.PI * 2);
         ctx.fill();
       };
-      cloud(w * 0.27, h * 0.44, 0.6);
-      cloud(w * 0.4, h * 0.5, 0.45);
-      cloud(w * 0.5, h * 0.43, 0.55);
-      cloud(w * 0.74, h * 0.48, 0.5);
-      cloud(w * 0.55, h * 0.52, 0.35);
+      cloud(w * 0.3, h * 0.47, 1.0);
+      cloud(w * 0.42, h * 0.53, 0.7);
+      cloud(w * 0.5, h * 0.44, 0.9);
+      cloud(w * 0.75, h * 0.5, 0.8);
+      cloud(w * 0.2, h * 0.53, 0.6);
+      cloud(w * 0.88, h * 0.45, 1.1);
     });
     const sky = new THREE.Mesh(
-      new THREE.PlaneGeometry(220, 110),
+      new THREE.PlaneGeometry(420, 200),
       new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false, depthWrite: false }),
     );
-    sky.position.set(0, 10, -66);
+    sky.position.set(0, 20, -125);
     sky.renderOrder = -1;
     toBackground(sky);
     this.scene.add(sky);
   }
 
+  /** A low-poly heightfield strip that tiles seamlessly along x. */
+  private buildTerrainTile(opts: {
+    width: number;
+    zNear: number;
+    zFar: number;
+    maxHeight: number;
+    seed: number;
+    colorAt: (t: number, h: number) => THREE.Color;
+  }): { mesh: THREE.Mesh; heightAt: (lx: number, z: number) => number } {
+    const { width, zNear, zFar, maxHeight, seed, colorAt } = opts;
+    const depth = zNear - zFar;
+    const segX = 48;
+    const segZ = 12;
+    const geo = new THREE.PlaneGeometry(width, depth, segX, segZ);
+    geo.rotateX(-Math.PI / 2);
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    const zMid = (zNear + zFar) / 2;
+    const heightAt = (lx: number, z: number) => {
+      const t = THREE.MathUtils.clamp((zNear - z) / depth, 0, 1);
+      const ramp = THREE.MathUtils.smoothstep(t, 0, 0.55);
+      const n = periodicHeight(lx, z, width, seed) * 0.5 + 0.55;
+      return Math.max(0, n * maxHeight * ramp * (0.6 + 0.4 * t));
+    };
+    for (let i = 0; i < pos.count; i++) {
+      const lx = pos.getX(i);
+      const z = pos.getZ(i) + zMid;
+      pos.setY(i, heightAt(lx, z));
+    }
+    const nonIndexed = geo.toNonIndexed();
+    const p2 = nonIndexed.attributes.position as THREE.BufferAttribute;
+    const colors = new Float32Array(p2.count * 3);
+    for (let i = 0; i < p2.count; i += 3) {
+      // One colour per triangle for a faceted, painterly look
+      const hAvg = (p2.getY(i) + p2.getY(i + 1) + p2.getY(i + 2)) / 3;
+      const zAvg = (p2.getZ(i) + p2.getZ(i + 1) + p2.getZ(i + 2)) / 3 + zMid;
+      const t = THREE.MathUtils.clamp((zNear - zAvg) / depth, 0, 1);
+      const c = colorAt(t, hAvg / maxHeight);
+      const jitter = 0.94 + (((i * 7919) % 13) / 13) * 0.12;
+      for (let k = 0; k < 3; k++) {
+        colors[(i + k) * 3] = c.r * jitter;
+        colors[(i + k) * 3 + 1] = c.g * jitter;
+        colors[(i + k) * 3 + 2] = c.b * jitter;
+      }
+    }
+    nonIndexed.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    nonIndexed.computeVertexNormals();
+    const mesh = new THREE.Mesh(
+      nonIndexed,
+      new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }),
+    );
+    mesh.position.z = zMid;
+    return { mesh, heightAt };
+  }
+
+  private buildWaterfall(height: number): THREE.Group {
+    const g = new THREE.Group();
+    const tex = createPixelCanvasTexture(
+      8,
+      16,
+      (ctx) => {
+        ctx.fillStyle = '#7cc4f0';
+        ctx.fillRect(0, 0, 8, 16);
+        ctx.fillStyle = '#e8f7ff';
+        for (const [x, y, h] of [[1, 0, 5], [4, 6, 6], [6, 2, 4], [2, 10, 5], [5, 13, 3]]) ctx.fillRect(x, y, 1, h);
+      },
+      1,
+      Math.max(1, Math.round(height / 2)),
+    );
+    tex.magFilter = THREE.NearestFilter;
+    this.waterfallTextures.push(tex);
+    const water = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.4, height),
+      new THREE.MeshBasicMaterial({ map: tex, fog: true }),
+    );
+    water.position.y = height / 2;
+    const rockMat = createN64Material({ color: '#8c8f94', roughness: 0.95, wobbleGrid: 0 });
+    const face = new THREE.Mesh(new THREE.BoxGeometry(6.5, height, 3), createN64Material({ color: '#7d8188', roughness: 0.95, wobbleGrid: 0 }));
+    face.position.set(0, height / 2, -1.7);
+    g.add(face);
+    const cliffL = new THREE.Mesh(new THREE.BoxGeometry(1.6, height + 0.6, 1.4), rockMat);
+    cliffL.position.set(-1.9, (height + 0.6) / 2, -0.5);
+    const cliffR = new THREE.Mesh(new THREE.BoxGeometry(1.8, height + 1.2, 1.4), createN64Material({ color: '#a3a6ab', roughness: 0.95, wobbleGrid: 0 }));
+    cliffR.position.set(2.0, (height + 1.2) / 2, -0.5);
+    const pool = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.4, 2.4, 0.12, 12),
+      new THREE.MeshBasicMaterial({ color: '#9ad6f7' }),
+    );
+    pool.scale.z = 0.5;
+    pool.position.set(0, 0.06, 0.6);
+    const foam = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.1, 1.1, 0.16, 10),
+      new THREE.MeshBasicMaterial({ color: '#ffffff' }),
+    );
+    foam.scale.z = 0.5;
+    foam.position.set(0, 0.1, 0.4);
+    g.add(cliffL, cliffR, water, pool, foam);
+    return g;
+  }
+
   private buildCountryside() {
-    // Rolling hills: far ridge and nearer downs
-    const farHill = createN64Material({ color: '#8a8478', roughness: 0.9 });
-    const nearHill = createN64Material({ color: '#6d6a62', roughness: 0.9 });
-    for (let i = 0; i < 9; i++) {
-      const x = -54 + i * 13;
-      const hill = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), farHill);
-      hill.scale.set(11 + (i % 3) * 3, 4.5 + (i % 4) * 1.4, 6);
-      hill.position.set(x, -0.1, -40 - (i % 2) * 4);
-      toBackground(hill);
-      this.scene.add(hill);
-      this.sceneryItems.push({ group: hill, x, speedFactor: 0.18, span: 117 });
-    }
-    for (let i = 0; i < 8; i++) {
-      const x = -50 + i * 14;
-      const hill = new THREE.Mesh(new THREE.SphereGeometry(1, 10, 6, 0, Math.PI * 2, 0, Math.PI / 2), nearHill);
-      hill.scale.set(9 + (i % 2) * 4, 2.6 + (i % 3) * 0.9, 5);
-      hill.position.set(x, -0.1, -28 - (i % 3) * 2);
-      toBackground(hill);
-      this.scene.add(hill);
-      this.sceneryItems.push({ group: hill, x, speedFactor: 0.32, span: 112 });
-    }
+    // Rolling green hills, then snow-capped mountains behind them.
+    const W = 120;
+    const green = new THREE.Color('#79c25a');
+    const deepGreen = new THREE.Color('#3f8f3c');
+    const rock = new THREE.Color('#7d8594');
+    const snow = new THREE.Color('#f7fbff');
+    const hillLayers = [
+      {
+        zNear: -22, zFar: -50, maxHeight: 9, seed: 1.3, speed: 0.34,
+        colorAt: (t: number, h: number) => green.clone().lerp(deepGreen, Math.min(1, h * 0.8 + t * 0.2)),
+      },
+      {
+        zNear: -50, zFar: -95, maxHeight: 30, seed: 4.1, speed: 0.16,
+        colorAt: (_t: number, h: number) =>
+          h > 0.62 ? snow.clone() : h > 0.4 ? rock.clone().lerp(snow, (h - 0.4) * 0.8) : deepGreen.clone().lerp(rock, h * 2.2),
+      },
+    ];
+    hillLayers.forEach((layer, li) => {
+      for (let k = 0; k < 2; k++) {
+        const { mesh, heightAt } = this.buildTerrainTile({ width: W, ...layer });
+        const tile = new THREE.Group();
+        tile.add(mesh);
+        if (li === 0) {
+          // A waterfall tumbling off the hillside on each tile
+          // Seat it on the tallest part of this tile's hillside, falling to the valley floor.
+          const lz = -38;
+          let lx = 0;
+          let top = 0;
+          for (let x = -50; x <= 50; x += 2) {
+            const h = heightAt(x, lz);
+            if (h > top) { top = h; lx = x; }
+          }
+          const fall = this.buildWaterfall(Math.max(4, top + 0.4));
+          fall.position.set(lx, -0.1, lz + 3.2);
+          tile.add(fall);
+        }
+        const x = -W / 2 + k * W;
+        tile.position.x = x;
+        toBackground(tile);
+        this.scene.add(tile);
+        this.sceneryItems.push({ group: tile, x, speedFactor: layer.speed, span: W * 2 });
+      }
+    });
 
     // Patchwork fields: ripe amber crops and pale stubble, edged with dark hedgerows
     const fieldTex = (a: string, b: string) =>
@@ -403,12 +537,12 @@ export class NextStopSceneController {
         5,
       );
     const fieldMats = [
-      createN64Material({ color: 0xffffff, map: fieldTex('#ffb000', '#a86f00') }),
-      createN64Material({ color: 0xffffff, map: fieldTex('#c9c1b2', '#8a8478') }),
-      createN64Material({ color: 0xffffff, map: fieldTex('#ffd27a', '#ffb000') }),
-      createN64Material({ color: '#6d6a62' }),
+      createN64Material({ color: 0xffffff, map: fieldTex('#f5d33a', '#e0b81e') }),
+      createN64Material({ color: 0xffffff, map: fieldTex('#8ad468', '#6fbb50') }),
+      createN64Material({ color: 0xffffff, map: fieldTex('#e2b65a', '#c9963e') }),
+      createN64Material({ color: 0xffffff, map: fieldTex('#8a5a3b', '#6f4529') }),
     ];
-    const hedgeMat = createN64Material({ color: '#2e2e37', roughness: 0.9 });
+    const hedgeMat = createN64Material({ color: '#2e6b2e', roughness: 0.9 });
     for (let i = 0; i < 12; i++) {
       const x = -48 + i * 8.4;
       const z = -11 - (i % 3) * 5;
@@ -428,7 +562,7 @@ export class NextStopSceneController {
     // Trees and the odd cottage between the fields
     for (let i = 0; i < 16; i++) {
       const isCottage = i % 5 === 0;
-      const obj = isCottage ? buildCottageProp() : buildTreeProp(false);
+      const obj = isCottage ? buildCottageProp() : this.buildColourfulTree(i);
       const x = -46 + i * 6;
       const z = -6.5 - (i % 4) * 4.2;
       obj.position.set(x, 0, z);
@@ -437,6 +571,28 @@ export class NextStopSceneController {
       this.scene.add(obj);
       this.sceneryItems.push({ group: obj, x, speedFactor: 0.82, span: 96 });
     }
+  }
+
+  private buildColourfulTree(i: number): THREE.Group {
+    const kinds = ['oak', 'pine', 'oak', 'autumn', 'pine', 'blossom', 'oak', 'gold'];
+    const kind = kinds[i % kinds.length];
+    if (kind === 'pine') return buildTreeProp(false, i % 2 ? '#1f5e3a' : '#2f7a4a');
+    const leaf = { oak: '#4fa83d', autumn: '#e0702f', blossom: '#f2a7c3', gold: '#f2c037' }[kind] ?? '#4fa83d';
+    const g = new THREE.Group();
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.2, 0.3, 1.6, 5),
+      createN64Material({ color: '#6b4423', roughness: 0.92 }),
+    );
+    trunk.position.y = 0.8;
+    const leafMat = createN64Material({ color: leaf, roughness: 0.85 });
+    const crown = new THREE.Mesh(new THREE.IcosahedronGeometry(1.35, 0), leafMat);
+    crown.position.y = 2.3;
+    const crown2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.95, 0), leafMat);
+    crown2.position.set(0.7, 2.0, 0.2);
+    const crown3 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85, 0), leafMat);
+    crown3.position.set(-0.65, 2.1, -0.1);
+    g.add(trunk, crown, crown2, crown3);
+    return g;
   }
 
   private buildWildlife() {
@@ -521,12 +677,12 @@ export class NextStopSceneController {
       wingR.position.x = 0.12;
       g.add(wingL, wingR);
       const x = -40 + i * 13;
-      g.position.set(x, 6.5 + (i % 3) * 1.4, -16 - (i % 2) * 6);
+      g.position.set(x, 7, -14 - (i % 3) * 5);
       g.scale.setScalar(1.3);
       toBackground(g);
       this.scene.add(g);
-      this.birds.push({ wingL, wingR, phase: i * 1.7 });
-      this.sceneryItems.push({ group: g, x, speedFactor: 0.25, span: 91 });
+      const baseY = 7 + (i % 3) * 1.6;
+      this.birds.push({ group: g, wingL, wingR, phase: i * 1.7, vx: (i % 2 === 0 ? 1 : -1) * (3 + (i % 3)), baseY });
     }
   }
 
@@ -792,6 +948,14 @@ export class NextStopSceneController {
       const flap = Math.sin(elapsed * 9 + b.phase) * 0.7;
       b.wingL.rotation.z = flap;
       b.wingR.rotation.z = -flap;
+      b.group.position.x += b.vx * dt;
+      if (b.group.position.x > 75) b.group.position.x = -75;
+      if (b.group.position.x < -75) b.group.position.x = 75;
+      b.group.position.y = b.baseY + Math.sin(elapsed * 0.8 + b.phase) * 0.6;
+      b.group.rotation.y = b.vx > 0 ? 0 : Math.PI;
+    }
+    for (const t of this.waterfallTextures) {
+      t.offset.y = (t.offset.y + dt * 1.6) % 1;
     }
     if (this.trauma > 0) {
       this.trauma = Math.max(0, this.trauma - dt * 1.8);

@@ -150,13 +150,14 @@
 
 /* Home screen countryside parallax */
 .home-countryside {
-  background: linear-gradient(#cfc7b6 0%, #e6ddca 45%, #f2ebdd 100%);
+  background: linear-gradient(#2f80d1 0%, #5aaeea 45%, #bfe6fb 80%, #e3f4fd 100%);
 }
 .home-layer {
   width: 200%;
   animation: home-pan linear infinite;
 }
-.home-clouds { animation-duration: 160s; }
+.home-clouds { animation-duration: 180s; }
+.home-mtn { animation-duration: 240s; }
 .home-far { animation-duration: 120s; }
 .home-near { animation-duration: 60s; }
 .home-fields { animation-duration: 28s; }
@@ -166,8 +167,30 @@
 }
 .home-sun-rays { animation: home-spin 40s linear infinite; }
 @keyframes home-spin { to { transform: rotate(360deg); } }
+.home-waterfall { animation: home-fall 0.5s linear infinite; }
+@keyframes home-fall { to { stroke-dashoffset: -18; } }
+.home-bird {
+  animation-name: home-fly;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes home-fly {
+  0% { transform: translate(-8vw, 0); }
+  25% { transform: translate(22vw, -14px); }
+  50% { transform: translate(52vw, 6px); }
+  75% { transform: translate(80vw, -10px); }
+  100% { transform: translate(110vw, 0); }
+}
+.home-bird-body {
+  transform-origin: center;
+  animation: home-flap 0.45s ease-in-out infinite alternate;
+}
+@keyframes home-flap {
+  from { transform: scaleY(1); }
+  to { transform: scaleY(-0.35); }
+}
 @media (prefers-reduced-motion: reduce) {
-  .home-layer, .home-sun-rays { animation: none; }
+  .home-layer, .home-sun-rays, .home-waterfall, .home-bird, .home-bird-body { animation: none; }
 }
 
 /* Amber LED dot-matrix departure board */
@@ -176,6 +199,10 @@
   background: #0b0b0d;
   border: 6px solid #2a2a30;
   box-shadow: inset 0 0 0 2px #000, 0 8px 0 #0e0e12;
+}
+.led-board-flush {
+  border: 0;
+  box-shadow: none;
 }
 .led-row {
   background: #1a1508;

@@ -104,7 +104,7 @@ export const EuropePaywallScreen: React.FC<EuropePaywallScreenProps> = ({
                 NEXT STOP EUROPE
               </h1>
               <p className="text-xs text-[#c9c1b2] mt-1">
-                London St Pancras to Stockholm Central · 160+ European daily prompts.
+                London St Pancras to Stockholm Central · 160+ European daily questions.
               </p>
             </div>
             <div className="bg-[#16161b] border-2 border-[#ffb000] px-3.5 py-2 text-center shrink-0">
@@ -144,7 +144,7 @@ export const EuropePaywallScreen: React.FC<EuropePaywallScreenProps> = ({
             </div>
             <div className="n64-flap px-3 py-2.5 text-center mt-2">
               <div className="text-[10px] font-pixel text-[#ffb000] mb-1">
-                SAMPLE DEPARTURE PROMPT
+                SAMPLE QUESTION
               </div>
               <div className="text-xs sm:text-sm font-pixel text-[#f2ebdd]">
                 &quot;Name a European alpine railway pass or mountain tunnel&quot;

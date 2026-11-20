@@ -462,7 +462,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
               </h1>
               <p className="text-xs text-[#c9c1b2] mt-1 tabular-nums">
                 Reached #{String(unlimitedStationInfo.index).padStart(2, '0')}{' '}
-                {unlimitedStationInfo.name} · {unlimitedAttempts.length} prompts played
+                {unlimitedStationInfo.name} · {unlimitedAttempts.length} questions played
               </p>
             </div>
 
@@ -848,10 +848,10 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                   className="n64-btn bg-[#ffb000] text-[#1e1e24] px-5 py-2.5 text-xs font-pixel cursor-pointer min-h-[44px]"
                 >
                   {isUnlimited
-                    ? `NEXT PROMPT (#${unlimitedAttempts.length + 1})`
+                    ? 'NEXT TRAIN'
                     : answeredCount >= dailyPrompts.length
                       ? 'VIEW CROWDED TRAIN RESULTS'
-                      : `NEXT QUESTION (${answeredCount + 1}/${dailyPrompts.length})`}
+                      : `NEXT TRAIN · Q${answeredCount + 1}/${dailyPrompts.length}`}
                 </button>
                 {isUnlimited && (
                   <button

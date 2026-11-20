@@ -357,6 +357,7 @@ export class PalettePass {
           for (int k = 0; k < 16; k++) { if (k == i) return m[k] / 16.0 - 0.47; }
           return 0.0;
         }
+        // Kept for palette experiments; not used by the current look.
         vec3 quantize(vec3 c) {
           float best = 1e9;
           vec3 outC = c;
@@ -371,13 +372,16 @@ export class PalettePass {
         void main() {
           vec4 fg = texture2D(tFg, vUv);
           if (fg.a > 0.5) {
-            gl_FragColor = vec4(quantize(toSrgb(fg.rgb)), 1.0);
+            // Foreground stays in true colour so trains, signs and people read clearly.
+            gl_FragColor = vec4(toSrgb(fg.rgb), 1.0);
             return;
           }
+          // Background: full colour, posterised to a few levels per channel with
+          // ordered dithering for a retro pixel-art finish.
           vec2 bgPx = floor(vUv * uBgSize);
           vec3 bg = toSrgb(texture2D(tBg, (bgPx + 0.5) / uBgSize).rgb);
-          bg += bayer4(bgPx) * uDither;
-          gl_FragColor = vec4(quantize(bg), 1.0);
+          vec3 q = floor(bg * 7.0 + 0.5 + bayer4(bgPx) * 0.9) / 7.0;
+          gl_FragColor = vec4(clamp(q, 0.0, 1.0), 1.0);
         }
       `,
       depthTest: false,

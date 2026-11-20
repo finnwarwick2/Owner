@@ -98,12 +98,12 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
               </span>
             </h1>
             <p className="text-xs text-[#c9c1b2] mt-1 tabular-nums">
-              Terminated at #{String(finalStation.index).padStart(2, '0')} {finalStation.name} · 5 / 5 prompts completed
+              Terminated at #{String(finalStation.index).padStart(2, '0')} {finalStation.name} · 5 / 5 questions answered
             </p>
           </div>
 
           <div className="bg-[#16161b] border-2 border-[#3a3a44] px-4 py-2.5 text-center shrink-0">
-            <div className="text-[10px] text-[#9a9386]">NEXT PROMPTS IN</div>
+            <div className="text-[10px] text-[#9a9386]">NEXT TRAINS IN</div>
             <div
               className="text-lg font-pixel text-[#ffb000] tabular-nums mt-0.5"
               data-testid="midnight-countdown"
@@ -153,7 +153,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
             <div>
               <p className="text-sm font-pixel text-[#f2ebdd]">Fancy a longer trip?</p>
               <p className="text-sm text-[#c9c1b2] mt-2 leading-relaxed">
-                NEXT STOP EUROPE: 5 more prompts a day on a line from London to Stockholm.
+                NEXT STOP EUROPE: 5 more questions a day on a line from London to Stockholm.
               </p>
             </div>
             <button
