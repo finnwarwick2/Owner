@@ -131,6 +131,9 @@ export class NextStopSceneController {
   private sceneryItems: SceneryItem[] = [];
   private birds: { group: THREE.Object3D; wingL: THREE.Object3D; wingR: THREE.Object3D; phase: number; vx: number; baseY: number }[] = [];
   private waterfallTextures: THREE.Texture[] = [];
+  private showcase = false;
+  private showcaseX = -26;
+  private showcaseTierIdx = 0;
   private skippedPlatforms: SkippedPlatformItem[] = [];
 
   // Active train
@@ -499,7 +502,7 @@ export class NextStopSceneController {
         const { mesh, heightAt } = this.buildTerrainTile({ width: W, ...layer });
         const tile = new THREE.Group();
         tile.add(mesh);
-        if (li === 0) {
+        if (li === 0 && k === 0) {
           // A waterfall tumbling off the hillside on each tile
           // Seat it on the tallest part of this tile's hillside, falling to the valley floor.
           const lz = -38;
@@ -823,6 +826,57 @@ export class NextStopSceneController {
     this.camera.lookAt(0, 1.5, 0);
   }
 
+  /**
+   * Home-screen mode: no platform or porter, just trains crossing the
+   * countryside one after another, each in a different answer colour.
+   */
+  public startShowcase() {
+    this.showcase = true;
+    this.characterRig.root.visible = false;
+    this.homePlatformGroup.visible = false;
+    this.arrivalPlatformGroup.visible = false;
+    this.clearSkippedPlatforms();
+    this.showcaseX = -26;
+    this.buildShowcaseTrain();
+  }
+
+  private static SHOWCASE_TIERS: RarityTier[] = ['LEGENDARY', 'RARE', 'UNCOMMON', 'FAKE_DEEP', 'COMMON'];
+
+  private buildShowcaseTrain() {
+    const tier = NextStopSceneController.SHOWCASE_TIERS[this.showcaseTierIdx % 5];
+    this.activeTier = tier;
+    this.trainWrapper.clear();
+    this.activeTrain = buildTrainModel(tier, this.profile.liveryId);
+    this.activeTrain.group.rotation.y = Math.PI / 2;
+    this.trainWrapper.add(this.activeTrain.group);
+  }
+
+  private stepShowcase(dt: number, elapsed: number) {
+    const speed = 7;
+    this.showcaseX += speed * dt;
+    if (this.showcaseX > 26) {
+      this.showcaseX = -26;
+      this.showcaseTierIdx++;
+      this.buildShowcaseTrain();
+    }
+    this.trainWrapper.position.set(this.showcaseX, 0.14 + Math.sin(elapsed * 22) * 0.02, -1.6);
+    if (this.activeTrain) {
+      for (const w of this.activeTrain.wheels) w.rotation.x += speed * dt * 0.85;
+    }
+    // Gentle parallax drift so the landscape feels alive
+    for (const item of this.sceneryItems) {
+      item.x -= 2.2 * item.speedFactor * dt;
+      if (item.x < -item.span / 2) item.x += item.span;
+      item.group.position.x = item.x;
+    }
+    this.smokeTimer += dt;
+    if (this.smokeTimer > 0.14) {
+      this.smokeTimer = 0;
+      this.spawnParticle(this.showcaseX + 1.6, 2.65, -1.6, -2, 2.1, 0, 0.9, 0.8, '#e8eef2');
+    }
+    this.updateParticles(dt, 0);
+  }
+
   public triggerTrainSequence(
     tier: RarityTier,
     startStation: number,
@@ -956,6 +1010,10 @@ export class NextStopSceneController {
     }
     for (const t of this.waterfallTextures) {
       t.offset.y = (t.offset.y + dt * 1.6) % 1;
+    }
+    if (this.showcase) {
+      this.stepShowcase(dt, elapsed);
+      return;
     }
     if (this.trauma > 0) {
       this.trauma = Math.max(0, this.trauma - dt * 1.8);
@@ -1222,6 +1280,17 @@ export class NextStopSceneController {
 
   private applyCameraShake() {
     const isPortrait = this.camera.aspect < 0.9;
+    if (this.showcase) {
+      // Track low on screen so the menu card sits over the sky and hills.
+      if (isPortrait) {
+        this.camera.position.set(0, 3, 19);
+        this.camera.lookAt(0, 6.5, 0);
+      } else {
+        this.camera.position.set(0, 2.2, 13);
+        this.camera.lookAt(0, 4.6, 0);
+      }
+      return;
+    }
     const baseX = isPortrait ? -1.05 : 0;
     const baseY = isPortrait ? 3.1 : 2.85;
     const baseZ = isPortrait ? 20.5 : 11.6;
