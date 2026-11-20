@@ -138,11 +138,11 @@
 }
 
 @keyframes home-train-run {
-  from { transform: translateX(-180px); }
+  from { transform: translateX(-820px); }
   to { transform: translateX(calc(100vw + 40px)); }
 }
 .home-train {
-  animation: home-train-run 9s steps(90, end) infinite;
+  animation: home-train-run 12s steps(160, end) infinite;
 }
 @media (prefers-reduced-motion: reduce) {
   .home-train { animation: none; display: none; }

@@ -98,7 +98,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         {muted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
       </button>
 
-      <div className="min-h-full flex flex-col items-center justify-center px-6 py-14">
+      <div className="min-h-full flex flex-col items-center justify-center px-6 pt-14 pb-36">
         <div className="w-full max-w-md flex flex-col items-center text-center">
           {/* Departure-board logo */}
           <div className="w-full bg-[#0e0e12] border-4 border-[#2a2a32] px-5 pt-4 pb-5 shadow-[0_8px_0_#0e0e12]">
@@ -176,18 +176,33 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
       </div>
 
-      {/* Little train crossing the bottom of the screen */}
-      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-10 overflow-hidden" aria-hidden="true">
-        <div className="absolute bottom-2 left-0 right-0 h-[3px] bg-[#2a2a32]" />
-        <div className="home-train absolute bottom-[5px] flex items-end gap-[3px]">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="w-9 h-4 bg-[#2a2a32] border-t-2 border-[#ffb000] flex gap-1 items-center px-1">
-              <span className="w-1.5 h-1.5 bg-[#ffb000]" />
-              <span className="w-1.5 h-1.5 bg-[#ffb000]" />
-              <span className="w-1.5 h-1.5 bg-[#ffb000]" />
+      {/* Big train crossing the bottom of the screen */}
+      <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-32 overflow-hidden" aria-hidden="true">
+        {/* Rails and sleepers */}
+        <div className="absolute bottom-3 left-0 right-0 h-[6px] bg-[#44444f]" />
+        <div className="absolute bottom-0 left-0 right-0 h-3 bg-[repeating-linear-gradient(90deg,#2a2a32_0_14px,transparent_14px_34px)]" />
+        <div className="home-train absolute bottom-[18px] flex items-end gap-2">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="relative w-36 h-20 bg-[#2e2e37] border-t-[6px] border-[#ffb000] shadow-[inset_0_-10px_0_#1e1e24]">
+              <div className="flex gap-2 px-3 pt-3">
+                {[0, 1, 2, 3].map((w) => (
+                  <span key={w} className="w-6 h-7 bg-[#ffd27a] border-2 border-[#1e1e24]" />
+                ))}
+              </div>
+              <div className="absolute left-0 right-0 bottom-4 h-2 bg-[#ffb000]" />
+              <span className="absolute -bottom-3 left-4 w-7 h-7 rounded-full bg-[#16161b] border-4 border-[#8a8478]" />
+              <span className="absolute -bottom-3 right-4 w-7 h-7 rounded-full bg-[#16161b] border-4 border-[#8a8478]" />
             </div>
           ))}
-          <div className="w-10 h-5 bg-[#f2ebdd] [clip-path:polygon(0_0,70%_0,100%_100%,0_100%)]" />
+          {/* Locomotive */}
+          <div className="relative w-44 h-24">
+            <div className="absolute inset-0 bg-[#f2ebdd] [clip-path:polygon(0_0,62%_0,100%_100%,0_100%)]" />
+            <div className="absolute left-3 top-3 w-16 h-9 bg-[#1e1e24] border-2 border-[#ffb000]" />
+            <div className="absolute left-0 right-0 bottom-5 h-3 bg-[#ffb000] [clip-path:polygon(0_0,89%_0,93%_100%,0_100%)]" />
+            <span className="absolute right-3 bottom-2 w-3 h-3 bg-[#ffd27a] shadow-[0_0_12px_4px_rgba(255,176,0,0.6)]" />
+            <span className="absolute -bottom-3 left-5 w-7 h-7 rounded-full bg-[#16161b] border-4 border-[#8a8478]" />
+            <span className="absolute -bottom-3 left-[5.5rem] w-7 h-7 rounded-full bg-[#16161b] border-4 border-[#8a8478]" />
+          </div>
         </div>
       </div>
 
