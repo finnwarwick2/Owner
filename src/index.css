@@ -169,3 +169,41 @@
 @media (prefers-reduced-motion: reduce) {
   .home-layer, .home-sun-rays { animation: none; }
 }
+
+/* Amber LED dot-matrix departure board */
+.led-board {
+  position: relative;
+  background: #0b0b0d;
+  border: 6px solid #2a2a30;
+  box-shadow: inset 0 0 0 2px #000, 0 8px 0 #0e0e12;
+}
+.led-row {
+  background: #1a1508;
+}
+.led-text {
+  position: relative;
+  font-family: 'DotGothic16', 'VT323', monospace;
+  color: #ff9f1a;
+  text-shadow: 0 0 6px rgba(255, 150, 20, 0.65), 0 0 16px rgba(255, 140, 0, 0.25);
+  line-height: 1.25;
+}
+/* Fine dot grid over the lit text so it reads as individual LEDs */
+.led-text::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(circle, transparent 1px, rgba(11, 11, 13, 0.55) 1.6px);
+  background-size: 3px 3px;
+}
+.led-marquee {
+  padding-left: 100%;
+  animation: led-scroll 45s linear infinite;
+}
+@keyframes led-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .led-marquee { animation: none; padding-left: 0; }
+}

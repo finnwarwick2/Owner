@@ -117,6 +117,16 @@ export const TIER_COLORS: Record<RarityTier, string> = {
   LEGENDARY: '#ffb000',
 };
 
+/** Names shown to players for each level, rarest last. */
+export const TIER_LABELS: Record<RarityTier, string> = {
+  INVALID: 'No train',
+  COMMON: 'Common',
+  FAKE_DEEP: 'Uncommon',
+  UNCOMMON: 'Rare',
+  RARE: 'Epic',
+  LEGENDARY: 'Legendary',
+};
+
 export const ORDERED_TIERS: RarityTier[] = [
   'INVALID',
   'COMMON',

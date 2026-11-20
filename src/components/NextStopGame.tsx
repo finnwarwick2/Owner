@@ -27,6 +27,7 @@ import {
   type NextStopSaveData,
   type PromptAttempt,
   type RarityTier,
+  TIER_LABELS,
 } from '../games/next-stop/types';
 import { isDevMode, isEuropeUnlocked } from '../services/stripeCheckout';
 import { NextStopSceneController } from '../three/NextStopScene';
@@ -677,15 +678,15 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
         {(phase === 'prompt' || phase === 'suspense' || phase === 'reveal') && (
           <div className="w-full max-w-2xl mx-auto mt-1 mb-auto">
             <div
-              className="n64-flap px-5 py-3.5 text-center"
+              className="led-board px-4 py-3 text-center"
               data-testid="departure-board"
             >
-              <div className="text-[11px] sm:text-xs font-pixel text-[#ffb000] tracking-wide mb-1.5">
+              <div className="led-row led-text text-sm sm:text-base tracking-wide mb-1.5 px-2">
                 {phase === 'suspense'
                   ? 'FLIPPING DEPARTURE BOARD...'
                   : `#${String(currentStationInfo.index).padStart(2, '0')} ${currentStationInfo.name.toUpperCase()} · ${activePrompt?.category ?? 'DAILY'}`}
               </div>
-              <div className="text-base sm:text-xl font-pixel text-[#f2ebdd] leading-snug">
+              <div className="led-row led-text text-xl sm:text-3xl leading-snug px-2 py-1">
                 {phase === 'suspense' ? scrambleText : activePrompt?.prompt}
               </div>
             </div>
@@ -810,7 +811,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                   className="px-2.5 py-1 text-[11px] font-pixel text-[#1e1e24]"
                   style={{ backgroundColor: activeSpec.accentHex }}
                 >
-                  {judgeResult.tier.replace('_', '-')}
+                  {TIER_LABELS[judgeResult.tier].toUpperCase()}
                 </span>
                 <span className="text-sm sm:text-base font-pixel text-[#f2ebdd]">
                   {activeSpec.trainName}

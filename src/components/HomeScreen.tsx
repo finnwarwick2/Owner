@@ -7,8 +7,9 @@ import {
   msUntilLocalMidnight,
   parseDateKeyToDayNumber,
 } from '../games/next-stop/daily';
+import { getRouteStations } from '../games/next-stop/routes';
 import { computeCareerStats } from '../games/next-stop/storage';
-import type { GameEdition, NextStopSaveData } from '../games/next-stop/types';
+import { TIER_COLORS, TIER_LABELS, TRAIN_SPECS, type GameEdition, type NextStopSaveData, type RarityTier } from '../games/next-stop/types';
 import { isEuropeUnlocked } from '../services/stripeCheckout';
 
 interface HomeScreenProps {
@@ -100,60 +101,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       </button>
 
       <div className="min-h-full flex flex-col items-center justify-center px-6 pt-14 pb-36">
-        <div className="relative z-10 w-full max-w-md flex flex-col items-center text-center bg-[#1e1e24]/95 border-4 border-[#0e0e12] p-5 shadow-[0_8px_0_rgba(14,14,18,0.6)]">
-          {/* Departure-board logo */}
-          <div className="w-full bg-[#0e0e12] border-4 border-[#2a2a32] px-5 pt-4 pb-5 shadow-[0_8px_0_#0e0e12]">
-            <div className="flex justify-between text-[10px] font-pixel text-[#6e695f] mb-3">
-              <span>NO. {issueNo}</span>
-              <span>{dateLabel}</span>
-            </div>
-            <h1 className="font-dot dot-glow text-[3.4rem] sm:text-[4.2rem] leading-[0.95] tracking-[0.08em]">
-              NEXT
-              <br />
-              STOP
-            </h1>
-            <div className="mt-4 h-1.5 w-full bg-[repeating-linear-gradient(90deg,#ffb000_0_6px,transparent_6px_12px)] opacity-70" />
-          </div>
+        <div className="relative z-10 w-full max-w-xl flex flex-col items-center text-center bg-[#1e1e24]/95 border-4 border-[#0e0e12] p-4 sm:p-5 shadow-[0_8px_0_rgba(14,14,18,0.6)]">
+          <LedDepartureBoard issueNo={issueNo} dateLabel={dateLabel} done={main.state === 'done'} />
 
-          <p className="mt-8 text-base sm:text-lg leading-relaxed text-[#f2ebdd] max-w-sm">
-            Answer 5 daily prompts. The more{' '}
-            <span className="text-[#ffb000]">obscure</span> your answer, the more stations
-            your train skips.
-          </p>
-
-          <button
-            type="button"
-            data-testid="play-btn"
-            onClick={() => {
-              soundEngine.playUiClick();
-              onPlay('next-stop');
-            }}
-            className="n64-btn mt-8 w-full bg-[#ffb000] text-[#1e1e24] py-5 text-lg sm:text-xl font-pixel cursor-pointer"
-          >
-            {mainLabel}
-          </button>
-
-          {main.state === 'done' && (
-            <p className="mt-3 text-xs font-pixel text-[#9a9386] tabular-nums">
-              {main.score} PTS TODAY · NEXT PROMPTS IN{' '}
-              <span className="text-[#ffb000]">{countdown}</span>
-            </p>
-          )}
-
-          <button
-            type="button"
-            data-testid="europe-btn"
-            onClick={() => {
-              soundEngine.playUiClick();
-              onPlay('next-stop-europe');
-            }}
-            className="mt-5 w-[86%] border-2 border-[#3a3a44] hover:border-[#ffb000] bg-[#16161b] py-3 px-4 text-[11px] sm:text-xs font-pixel text-[#f2ebdd] cursor-pointer flex items-center justify-center gap-2 transition-colors"
-          >
-            <span className="inline-block w-2.5 h-2.5 bg-[#1f4ea8]" aria-hidden="true" />
-            {europeLabel}
-          </button>
-
-          <div className="mt-10 flex items-center gap-6 text-xs font-pixel text-[#9a9386]">
+          <div className="mt-5 flex items-center gap-6 text-xs font-pixel text-[#c9c1b2]">
             <button
               type="button"
               onClick={() => setShowHelp(true)}
@@ -169,6 +120,45 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               <BarChart3 className="w-4 h-4" /> STATS
             </button>
           </div>
+
+          <button
+            type="button"
+            data-testid="play-btn"
+            onClick={() => {
+              soundEngine.playUiClick();
+              onPlay('next-stop');
+            }}
+            className="n64-btn mt-5 w-full bg-[#ffb000] text-[#1e1e24] py-5 text-lg sm:text-xl font-pixel cursor-pointer"
+          >
+            {mainLabel}
+          </button>
+
+          {main.state === 'done' && (
+            <p className="mt-3 text-xs font-pixel text-[#9a9386] tabular-nums">
+              {main.score} PTS TODAY · NEXT PROMPTS IN{' '}
+              <span className="text-[#ffb000]">{countdown}</span>
+            </p>
+          )}
+
+          <p className="mt-6 text-base sm:text-lg leading-relaxed text-[#f2ebdd] max-w-sm">
+            Answer 5 daily prompts. The more{' '}
+            <span className="text-[#ffb000]">obscure</span> your answer, the more stations
+            your train skips.
+          </p>
+
+          <button
+            type="button"
+            data-testid="europe-btn"
+            onClick={() => {
+              soundEngine.playUiClick();
+              onPlay('next-stop-europe');
+            }}
+            className="mt-6 w-[86%] border-2 border-[#3a3a44] hover:border-[#ffb000] bg-[#16161b] py-3 px-4 text-[11px] sm:text-xs font-pixel text-[#f2ebdd] cursor-pointer flex items-center justify-center gap-2 transition-colors"
+          >
+            <span className="inline-block w-2.5 h-2.5 bg-[#1f4ea8]" aria-hidden="true" />
+            {europeLabel}
+          </button>
+
           {stats.currentStreak > 0 && (
             <p className="mt-4 text-[11px] font-pixel text-[#6e695f]">
               {stats.currentStreak}-DAY STREAK
@@ -227,11 +217,13 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </p>
             <ul className="text-xs font-pixel space-y-2 text-[#c9c1b2]">
               <li>WRONG / NO ANSWER · 0 STN</li>
-              <li>COMMON · STOPPING SERVICE · 1 STN</li>
-              <li>"CLEVER" CLICHÉ · LOCAL · 2 STN</li>
-              <li>UNCOMMON · SEMI-FAST · 4 STN</li>
-              <li className="text-[#ffb000]">RARE · EXPRESS · 6 STN</li>
-              <li className="text-[#ffd27a]">LEGENDARY · NON-STOP BULLET · 8 STN</li>
+              {(['COMMON', 'FAKE_DEEP', 'UNCOMMON', 'RARE', 'LEGENDARY'] as RarityTier[]).map((t) => (
+                <li key={t} className="flex items-center gap-2">
+                  <span className="inline-block w-3 h-3 border border-[#0e0e12]" style={{ backgroundColor: TIER_COLORS[t] }} />
+                  <span style={{ color: TIER_COLORS[t] }}>{TIER_LABELS[t].toUpperCase()}</span>
+                  <span>· {TRAIN_SPECS[t].trainName.toUpperCase()} · {TRAIN_SPECS[t].stations} STN</span>
+                </li>
+              ))}
             </ul>
             <p className="text-sm leading-relaxed">
               Each station is worth 10 points (400 max). At the end, see where you sit on
@@ -327,3 +319,44 @@ const CountrysideBackdrop: React.FC = () => (
     </div>
   </div>
 );
+
+function hhmm(d: Date) {
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Amber dot-matrix departure board, like the ones hanging over UK platforms. */
+const LedDepartureBoard: React.FC<{ issueNo: number; dateLabel: string; done: boolean }> = ({
+  issueNo,
+  dateLabel,
+  done,
+}) => {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+  const stations = useMemo(() => getRouteStations('next-stop').map((s) => s.name), []);
+  const terminus = stations[stations.length - 1] ?? 'Terminus';
+  const departs = new Date(Math.ceil((now.getTime() + 60_000) / 600_000) * 600_000);
+  const callingAt = `Calling at: ${stations.slice(1, -1).join(', ')} and ${terminus}`;
+  const clock = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+  return (
+    <div className="led-board w-full p-3 sm:p-4 text-left" data-testid="led-board" aria-label={`Next Stop departure board, number ${issueNo}`}>
+      <div className="led-row led-text flex justify-between gap-3 px-2 text-lg sm:text-2xl">
+        <span className="truncate">{hhmm(departs)} {terminus}</span>
+        <span className="shrink-0">{done ? 'Arrived' : 'On time'}</span>
+      </div>
+      <div className="led-row led-text overflow-hidden px-2 mt-1 text-lg sm:text-2xl">
+        <span className="led-marquee inline-block whitespace-nowrap">{callingAt}</span>
+      </div>
+      <div className="led-row led-text flex items-baseline justify-between gap-3 px-2 mt-1">
+        <h1 className="text-2xl sm:text-5xl tracking-[0.06em] whitespace-nowrap">Next Stop</h1>
+        <span className="text-xs sm:text-base shrink-0">No.{issueNo} · {dateLabel}</span>
+      </div>
+      <div className="led-text text-center text-4xl sm:text-6xl mt-3 tabular-nums tracking-[0.08em]">
+        {clock}
+      </div>
+    </div>
+  );
+};
