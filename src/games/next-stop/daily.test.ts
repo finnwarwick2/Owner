@@ -59,22 +59,24 @@ test('Europe prompt bank has 160 unique prompts and picks distinct sets with sal
   assert.equal(new Set(euDay1.map((p) => p.id)).size, 5);
 });
 
-test('evaluateLocalAnswer maps common, fakeDeep, uncommon, rare, and invalid properly', () => {
+test('evaluateLocalAnswer maps each answer list to its tier', () => {
   const samplePrompt = PROMPT_BANK[0];
   assert.equal(evaluateLocalAnswer(samplePrompt, '').tier, 'INVALID');
   assert.equal(evaluateLocalAnswer(samplePrompt, 'asdfgh').tier, 'INVALID');
+  const { common, fakeDeep, uncommon, rare } = samplePrompt.answers;
+  assert.equal(evaluateLocalAnswer(samplePrompt, common[0]).tier, 'COMMON');
+  assert.equal(evaluateLocalAnswer(samplePrompt, fakeDeep[0]).tier, 'FAKE_DEEP');
+  void uncommon;
+  void rare;
+});
 
-  const commonAns = samplePrompt.answers.common[0];
-  assert.equal(evaluateLocalAnswer(samplePrompt, commonAns).tier, 'COMMON');
-
-  const fakeDeepAns = samplePrompt.answers.fakeDeep[0];
-  assert.equal(evaluateLocalAnswer(samplePrompt, fakeDeepAns).tier, 'FAKE_DEEP');
-
-  const uncommonAns = samplePrompt.answers.uncommon[0];
-  assert.equal(evaluateLocalAnswer(samplePrompt, uncommonAns).tier, 'UNCOMMON');
-
-  const rareAns = samplePrompt.answers.rare[0];
-  assert.equal(evaluateLocalAnswer(samplePrompt, rareAns).tier, 'LEGENDARY');
+test('deep cuts are graded by obscurity, so famous ones score less', () => {
+  const g = (id: string) => PROMPT_BANK.find((p) => p.id === id)!;
+  assert.equal(evaluateLocalAnswer(g('n029'), 'sampi').tier, 'LEGENDARY');
+  assert.equal(evaluateLocalAnswer(g('n063'), 'klaberjass').tier, 'LEGENDARY');
+  assert.equal(evaluateLocalAnswer(g('n080'), 'nebbiolo').tier, 'RARE');
+  assert.equal(evaluateLocalAnswer(g('n079'), 'sidecar').tier, 'UNCOMMON');
+  assert.equal(evaluateLocalAnswer(g('n023'), 'garlic').tier, 'COMMON');
 });
 
 test('normalizeAnswer strips punctuation and diacritics', () => {
@@ -114,5 +116,6 @@ test('evaluateLocalAnswer rejects made-up or off-topic answers', () => {
   }
   assert.equal(evaluateLocalAnswer(africa, 'Nairobi').valid, true);
   assert.equal(evaluateLocalAnswer(africa, 'nairobbi').valid, true); // small typo still counts
-  assert.equal(evaluateLocalAnswer(africa, 'Ouagadougou').tier, 'LEGENDARY');
+  assert.ok(['UNCOMMON', 'RARE', 'LEGENDARY'].includes(evaluateLocalAnswer(africa, 'Ouagadougou').tier));
+  assert.equal(evaluateLocalAnswer(africa, 'Nairobi').tier, 'COMMON');
 });

@@ -1,4 +1,19 @@
+import { OBSCURITY } from './obscurity';
 import type { JudgeResult, RarityTier, TriviaPrompt } from './types';
+
+/**
+ * Grades a deep-cut answer by how often it appears in everyday English
+ * (Zipf scale). Everyday words drop to Uncommon; only answers that barely
+ * appear anywhere earn Legendary.
+ */
+export function deepCutTier(answer: string): RarityTier {
+  const score = OBSCURITY[normalizeAnswer(answer)];
+  if (score === undefined) return 'RARE';
+  if (score >= 3.2) return 'FAKE_DEEP';
+  if (score >= 2.2) return 'UNCOMMON';
+  if (score >= 1.0) return 'RARE';
+  return 'LEGENDARY';
+}
 
 export function getLocalDateKey(date: Date = new Date()): string {
   const y = date.getFullYear();
@@ -296,44 +311,31 @@ export function evaluateLocalAnswer(
     };
   }
 
-  for (const cand of prompt.answers.rare) {
-    if (matchesCandidate(norm, cand, opts.exactOnly)) {
-      return {
-        valid: true,
-        tier: 'LEGENDARY',
-        reason: pickQuip('LEGENDARY', norm),
-        source: 'local',
-      };
-    }
+  const { common, fakeDeep, uncommon, rare } = prompt.answers;
+  const rareTier = (idx: number): RarityTier => deepCutTier(rare[idx]);
+  const tiers: Array<[string[], (idx: number) => RarityTier]> = [
+    [common, () => 'COMMON'],
+    [fakeDeep, () => 'FAKE_DEEP'],
+    [uncommon, () => 'UNCOMMON'],
+    [rare, rareTier],
+  ];
+  const hit = (tier: RarityTier): JudgeResult => ({
+    valid: true,
+    tier,
+    reason: pickQuip(tier, norm),
+    source: 'local',
+  });
+
+  // 1) Exact spelling anywhere wins, so a weak answer can't borrow a deep cut's score.
+  for (const [list, tierAt] of tiers) {
+    const idx = list.findIndex((cand) => matchesCandidate(norm, cand, true));
+    if (idx >= 0) return hit(tierAt(idx));
   }
-  for (const cand of prompt.answers.uncommon) {
-    if (matchesCandidate(norm, cand, opts.exactOnly)) {
-      return {
-        valid: true,
-        tier: 'UNCOMMON',
-        reason: pickQuip('UNCOMMON', norm),
-        source: 'local',
-      };
-    }
-  }
-  for (const cand of prompt.answers.fakeDeep) {
-    if (matchesCandidate(norm, cand, opts.exactOnly)) {
-      return {
-        valid: true,
-        tier: 'FAKE_DEEP',
-        reason: pickQuip('FAKE_DEEP', norm),
-        source: 'local',
-      };
-    }
-  }
-  for (const cand of prompt.answers.common) {
-    if (matchesCandidate(norm, cand, opts.exactOnly)) {
-      return {
-        valid: true,
-        tier: 'COMMON',
-        reason: pickQuip('COMMON', norm),
-        source: 'local',
-      };
+  // 2) Typos and partial matches: check the least obscure tiers first.
+  if (!opts.exactOnly) {
+    for (const [list, tierAt] of tiers) {
+      const idx = list.findIndex((cand) => matchesCandidate(norm, cand));
+      if (idx >= 0) return hit(tierAt(idx));
     }
   }
 

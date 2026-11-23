@@ -138,23 +138,22 @@ const NICHE_BASE: TriviaPrompt[] = [
   p('n100', 'ANIMALS', 'Name a dinosaur that is not T. rex, Triceratops or Stegosaurus', ['velociraptor', 'brachiosaurus', 'diplodocus'], ['spinosaurus', 'iguanodon'], ['ankylosaurus', 'allosaurus', 'parasaurolophus', 'brontosaurus', 'pachycephalosaurus', 'giganotosaurus', 'archaeopteryx'], ['therizinosaurus', 'microraptor', 'carnotaurus', 'baryonyx', 'megalosaurus', 'compsognathus', 'deinonychus', 'oviraptor', 'gallimimus', 'maiasaura', 'dilophosaurus', 'amargasaurus', 'argentinosaurus', 'kentrosaurus', 'nodosaurus', 'troodon', 'utahraptor', 'dreadnoughtus', 'hypsilophodon', 'scelidosaurus', 'edmontosaurus']),
 ];
 
-/** The niche bank with the extra offline answers merged in. */
+/**
+ * The niche bank with extra answers merged in, tiered stingily so only
+ * genuinely obscure answers travel far offline:
+ *   common   (Common, 1 stn)    = obvious answers + the easier extras
+ *   fakeDeep (Uncommon, 2 stn)  = clichéd "clever" picks + solid-but-known answers
+ *   rare     (Rare 4 / Epic 6 / Legendary 8) = deep cuts, graded by obscurity.ts
+ */
 export const NICHE_PROMPTS: TriviaPrompt[] = NICHE_BASE.map((q) => {
-  const extra = { ...EXTRA_ANSWERS, ...EXTRA_ANSWERS_2 }[q.id];
-  if (!extra) return q;
-  const seen = new Set([
-    ...q.answers.common,
-    ...q.answers.fakeDeep,
-    ...q.answers.uncommon,
-    ...q.answers.rare,
-  ]);
-  const fresh = (list: string[] = []) => list.filter((a) => a && !seen.has(a) && (seen.add(a), true));
-  return {
-    ...q,
-    answers: {
-      ...q.answers,
-      uncommon: [...q.answers.uncommon, ...fresh(extra.uncommon)],
-      rare: [...q.answers.rare, ...fresh(extra.rare)],
-    },
-  };
+  const extra = { ...EXTRA_ANSWERS, ...EXTRA_ANSWERS_2 }[q.id] ?? {};
+  const seen = new Set<string>();
+  const uniq = (list: string[] = []) => list.filter((a) => a && !seen.has(a) && (seen.add(a), true));
+  // Claim the stingiest tier first so duplicates land low, not high.
+  const common = uniq([...q.answers.common, ...(extra.uncommon ?? [])]);
+  const fakeDeep = uniq([...q.answers.fakeDeep, ...q.answers.uncommon]);
+  // Every deep cut goes in one pool; the judge grades it by how rarely it appears in everyday English.
+  const rare = uniq([...q.answers.rare, ...(extra.rare ?? [])]);
+  const uncommon: string[] = [];
+  return { ...q, answers: { common, fakeDeep, uncommon, rare } };
 });
