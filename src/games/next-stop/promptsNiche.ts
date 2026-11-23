@@ -1,4 +1,5 @@
 import type { TriviaPrompt } from './types';
+import { EXTRA_ANSWERS, EXTRA_ANSWERS_2 } from './promptsNicheExtra';
 
 // Niche prompts: each one is narrow enough that you have to stop and think,
 // but still has plenty of valid answers. The lists only feed the offline judge;
@@ -15,7 +16,7 @@ function p(
   return { id, category, prompt, answers: { common, fakeDeep, uncommon, rare } };
 }
 
-export const NICHE_PROMPTS: TriviaPrompt[] = [
+const NICHE_BASE: TriviaPrompt[] = [
   // ── SCIENCE & BODY ──
   p('n001', 'ANATOMY', 'Name a bone in the human hand or wrist', ['phalanges', 'phalanx', 'metacarpal', 'knuckle'], ['scaphoid', 'carpal'], ['lunate', 'trapezium', 'hamate', 'capitate', 'pisiform'], ['triquetrum', 'trapezoid', 'distal phalanx', 'sesamoid']),
   p('n002', 'ANATOMY', 'Name a muscle in the human leg', ['hamstring', 'quadriceps', 'calf', 'glutes'], ['gluteus maximus', 'achilles'], ['gastrocnemius', 'soleus', 'sartorius', 'tibialis anterior', 'rectus femoris', 'biceps femoris'], ['vastus medialis', 'vastus lateralis', 'gracilis', 'semitendinosus', 'semimembranosus', 'popliteus', 'peroneus longus', 'adductor magnus', 'tensor fasciae latae', 'plantaris']),
@@ -47,7 +48,7 @@ export const NICHE_PROMPTS: TriviaPrompt[] = [
   p('n024', 'WORDS', 'Name a punctuation mark', ['comma', 'full stop', 'question mark', 'exclamation mark'], ['interrobang', 'semicolon'], ['colon', 'apostrophe', 'hyphen', 'dash', 'ellipsis', 'brackets', 'quotation marks'], ['pilcrow', 'guillemet', 'em dash', 'en dash', 'solidus', 'virgule', 'obelus', 'dagger', 'section sign', 'caret', 'tilde', 'asterism', 'manicule', 'interpunct', 'diaeresis']),
   p('n025', 'WORDS', 'Name a typeface or font', ['times new roman', 'arial', 'comic sans', 'helvetica'], ['papyrus', 'wingdings'], ['calibri', 'verdana', 'garamond', 'futura', 'georgia', 'courier', 'gill sans', 'baskerville'], ['johnston', 'bodoni', 'didot', 'akzidenz grotesk', 'caslon', 'rockwell', 'frutiger', 'univers', 'transport', 'clarendon', 'optima', 'avenir', 'perpetua', 'eurostile', 'cooper black', 'trajan']),
   p('n026', 'WORDS', 'Name a word borrowed into English from Japanese', ['sushi', 'karaoke', 'emoji', 'tsunami'], ['typhoon', 'umami'], ['karate', 'origami', 'haiku', 'anime', 'manga', 'futon', 'tofu', 'bonsai', 'kimono'], ['honcho', 'skosh', 'tycoon', 'rickshaw', 'zen', 'tempura', 'emoji', 'sudoku', 'kaizen', 'otaku', 'ninja', 'satsuma', 'kamikaze', 'shiitake', 'wasabi', 'kudzu']),
-  p('n027', 'WORDS', 'Name a word with two double letters back to back (like bOOKKeeper)', ['bookkeeper', 'balloon', 'coffee'], ['committee', 'toffee'], ['raccoon', 'woolly', 'tattoo', 'bassoon', 'succeed', 'woollen'], ['bookkeeping', 'sweettooth', 'tennessee', 'keenness', 'puttee', 'coffeepot', 'goddess']),
+  p('n027', 'WORDS', 'Name a word with two double letters back to back (like bOOKKeeper)', ['bookkeeper', 'balloon', 'coffee'], ['committee', 'toffee'], ['raccoon', 'woolly', 'tattoo', 'bassoon', 'succeed', 'woollen'], ['bookkeeping', 'sweettooth', 'tennessee', 'keenness', 'puttee', 'coffeepot']),
   p('n028', 'WORDS', 'Name a palindrome word', ['racecar', 'mum', 'level', 'kayak'], ['tattarrattat', 'rotavator'], ['radar', 'civic', 'refer', 'rotor', 'madam', 'noon', 'stats', 'deified'], ['redivider', 'reviver', 'repaper', 'malayalam', 'detartrated', 'minim', 'tenet', 'sagas', 'solos', 'rotator', 'murdrum']),
   p('n029', 'WORDS', 'Name a Greek letter that is not alpha, beta, gamma or delta', ['omega', 'pi', 'sigma'], ['lambda', 'theta'], ['epsilon', 'mu', 'rho', 'tau', 'phi', 'psi', 'chi', 'kappa', 'zeta'], ['eta', 'iota', 'nu', 'xi', 'omicron', 'upsilon', 'digamma', 'koppa', 'sampi', 'san']),
   p('n030', 'WORDS', 'Name a word in the NATO phonetic alphabet', ['alpha', 'bravo', 'charlie', 'delta'], ['zulu', 'foxtrot'], ['echo', 'golf', 'hotel', 'india', 'kilo', 'lima', 'mike', 'oscar', 'tango', 'victor'], ['juliett', 'november', 'papa', 'quebec', 'romeo', 'sierra', 'uniform', 'whiskey', 'x ray', 'yankee']),
@@ -67,7 +68,7 @@ export const NICHE_PROMPTS: TriviaPrompt[] = [
   // ── ARTS & CULTURE ──
   p('n041', 'ART', 'Name a painting by Vincent van Gogh', ['the starry night', 'sunflowers'], ['the potato eaters', 'cafe terrace at night'], ['irises', 'wheatfield with crows', 'the bedroom', 'self portrait with bandaged ear', 'almond blossoms'], ['the night cafe', 'the red vineyard', 'portrait of dr gachet', 'the yellow house', 'starry night over the rhone', 'the sower', 'skull of a skeleton with burning cigarette', 'the church at auvers', 'olive trees', 'the mulberry tree']),
   p('n042', 'ART', 'Name an art movement', ['impressionism', 'cubism', 'surrealism', 'pop art'], ['dadaism', 'art nouveau'], ['expressionism', 'renaissance', 'baroque', 'romanticism', 'fauvism', 'futurism', 'art deco', 'minimalism'], ['vorticism', 'pointillism', 'pre raphaelite', 'der blaue reiter', 'die brucke', 'suprematism', 'constructivism', 'de stijl', 'tachisme', 'fluxus', 'rococo', 'mannerism', 'orphism', 'bauhaus', 'les nabis']),
-  p('n043', 'MUSIC', 'Name a Beatles song that was not a UK number one', ['yesterday', 'let it be', 'come together'], ['across the universe', 'blackbird'], ['here comes the sun', 'something', 'in my life', 'norwegian wood', 'eleanor rigby', 'while my guitar gently weeps', 'penny lane'], ['rain', 'dear prudence', 'i am the walrus', 'tomorrow never knows', 'savoy truffle', 'happiness is a warm gun', 'helter skelter', 'taxman', 'the long and winding road', 'martha my dear', 'rocky raccoon', 'dig a pony', 'octopuss garden', 'mean mr mustard', 'her majesty']),
+  p('n043', 'MUSIC', 'Name a Beatles song that was not a UK number one', ['yesterday', 'let it be', 'come together'], ['across the universe', 'blackbird'], ['here comes the sun', 'something', 'in my life', 'norwegian wood', 'while my guitar gently weeps', 'penny lane'], ['rain', 'dear prudence', 'i am the walrus', 'tomorrow never knows', 'savoy truffle', 'happiness is a warm gun', 'helter skelter', 'taxman', 'the long and winding road', 'martha my dear', 'rocky raccoon', 'dig a pony', 'octopuss garden', 'mean mr mustard', 'her majesty']),
   p('n044', 'MUSIC', 'Name a classical composer born after 1850', ['elgar', 'debussy', 'stravinsky', 'rachmaninoff'], ['philip glass', 'erik satie'], ['holst', 'vaughan williams', 'ravel', 'mahler', 'puccini', 'sibelius', 'shostakovich', 'prokofiev', 'britten'], ['messiaen', 'ligeti', 'arvo part', 'janacek', 'poulenc', 'walton', 'tippett', 'delius', 'webern', 'berg', 'schoenberg', 'scriabin', 'nielsen', 'bartok', 'kodaly', 'gorecki', 'reich']),
   p('n045', 'MUSIC', 'Name a musical term written in Italian on a score', ['forte', 'piano', 'allegro'], ['crescendo', 'fortissimo'], ['andante', 'adagio', 'presto', 'largo', 'staccato', 'legato', 'diminuendo', 'pianissimo', 'vivace'], ['rubato', 'sforzando', 'pizzicato', 'ritardando', 'accelerando', 'sotto voce', 'tenuto', 'fermata', 'larghetto', 'moderato', 'dolce', 'con brio', 'grave', 'prestissimo', 'morendo', 'tutti']),
   p('n046', 'BOOKS', 'Name a character from a Charles Dickens novel', ['oliver twist', 'scrooge', 'pip', 'tiny tim'], ['miss havisham', 'artful dodger'], ['fagin', 'bill sikes', 'david copperfield', 'uriah heep', 'mr micawber', 'nancy', 'magwitch', 'estella'], ['wackford squeers', 'mr bumble', 'little nell', 'quilp', 'barnaby rudge', 'sydney carton', 'madame defarge', 'mr pecksniff', 'mrs gamp', 'bob cratchit', 'jarndyce', 'esther summerson', 'mr gradgrind', 'pickwick', 'sam weller', 'edwin drood', 'betsey trotwood']),
@@ -120,7 +121,7 @@ export const NICHE_PROMPTS: TriviaPrompt[] = [
   // ── TECH & MISC ──
   p('n084', 'TECH', 'Name a programming language', ['python', 'javascript', 'java', 'c'], ['cobol', 'fortran'], ['c++', 'c sharp', 'ruby', 'php', 'swift', 'go', 'rust', 'kotlin', 'typescript', 'sql'], ['haskell', 'lisp', 'prolog', 'erlang', 'elixir', 'ocaml', 'scala', 'perl', 'lua', 'julia', 'pascal', 'ada', 'smalltalk', 'brainfuck', 'clojure', 'forth', 'zig', 'apl', 'f sharp', 'dart', 'r', 'matlab', 'basic', 'assembly']),
   p('n085', 'TECH', 'Name a video game console', ['playstation', 'xbox', 'nintendo switch', 'wii'], ['sega dreamcast', 'game boy'], ['nintendo 64', 'gamecube', 'mega drive', 'super nintendo', 'atari 2600', 'psp', 'ds', 'master system', 'game gear'], ['3do', 'atari jaguar', 'neo geo', 'virtual boy', 'turbografx', 'sega saturn', 'vectrex', 'colecovision', 'intellivision', 'ouya', 'n gage', 'wonderswan', 'pc fx', 'philips cd i', 'magnavox odyssey', 'amiga cd32', 'sega 32x', 'pippin']),
-  p('n086', 'TECH', 'Name a vehicle brand that no longer exists', ['rover', 'saab'], ['delorean', 'pontiac'], ['triumph', 'austin', 'hillman', 'morris', 'oldsmobile', 'plymouth', 'talbot', 'datsun'], ['humber', 'sunbeam', 'wolseley', 'riley', 'singer', 'standard', 'reliant', 'trabant', 'studebaker', 'hudson', 'packard', 'tucker', 'mercury', 'saturn', 'scion', 'hummer', 'daewoo', 'lancia', 'sinclair', 'jensen', 'tvr']),
+  p('n086', 'TECH', 'Name a vehicle brand that no longer exists', ['rover', 'saab'], ['delorean', 'pontiac'], ['triumph', 'austin', 'hillman', 'morris', 'oldsmobile', 'plymouth', 'talbot', 'datsun'], ['humber', 'sunbeam', 'wolseley', 'riley', 'singer', 'standard', 'reliant', 'trabant', 'studebaker', 'hudson', 'packard', 'tucker', 'mercury', 'saturn', 'scion', 'hummer', 'daewoo', 'sinclair', 'jensen']),
   p('n087', 'TRANSPORT', 'Name a famous steam locomotive', ['flying scotsman', 'mallard'], ['rocket', 'stephensons rocket'], ['tornado', 'city of truro', 'puffing billy', 'locomotion no 1', 'duchess of hamilton'], ['sir nigel gresley', 'evening star', 'green arrow', 'oliver cromwell', 'king george v', 'caerphilly castle', 'tangmere', 'clun castle', 'blue peter', 'union of south africa', 'sir lamiel', 'big boy', 'novelty', 'sans pareil', 'catch me who can']),
   p('n088', 'TRANSPORT', 'Name a station on the London Overground or Docklands Light Railway', ['canary wharf', 'stratford', 'shoreditch high street'], ['mudchute', 'island gardens'], ['greenwich', 'cutty sark', 'lewisham', 'west india quay', 'crossharbour', 'hackney central', 'dalston junction'], ['pudding mill lane', 'royal victoria', 'prince regent', 'gallions reach', 'beckton park', 'cyprus', 'pontoon dock', 'west silvertown', 'langdon park', 'devons road', 'all saints', 'blackwall', 'east india', 'star lane', 'abbey road', 'wapping', 'rotherhithe', 'surrey quays', 'haggerston', 'hoxton', 'homerton', 'gospel oak', 'brondesbury', 'acton central']),
   p('n089', 'TRANSPORT', 'Name a heritage railway in Britain', ['bluebell railway', 'severn valley railway'], ['jacobite', 'ffestiniog railway'], ['north yorkshire moors railway', 'west somerset railway', 'keighley and worth valley', 'welsh highland railway', 'snowdon mountain railway', 'watercress line'], ['talyllyn railway', 'romney hythe and dymchurch', 'kent and east sussex railway', 'bodmin and wenford', 'strathspey railway', 'gloucestershire warwickshire', 'great central railway', 'llangollen railway', 'swanage railway', 'isle of wight steam railway', 'ravenglass and eskdale', 'vale of rheidol', 'bure valley railway', 'east lancashire railway', 'mid hants railway', 'nene valley railway', 'south devon railway']),
@@ -136,3 +137,24 @@ export const NICHE_PROMPTS: TriviaPrompt[] = [
   p('n099', 'SCIENCE', 'Name an inventor born in Scotland', ['alexander graham bell', 'james watt'], ['john logie baird'], ['alexander fleming', 'robert watson watt', 'john boyd dunlop', 'charles macintosh', 'john mcadam'], ['james clerk maxwell', 'kirkpatrick macmillan', 'robert stirling', 'william murdoch', 'james young', 'alexander bain', 'william cullen', 'thomas telford', 'james chalmers', 'robert william thomson', 'patrick bell', 'james goodfellow']),
   p('n100', 'ANIMALS', 'Name a dinosaur that is not T. rex, Triceratops or Stegosaurus', ['velociraptor', 'brachiosaurus', 'diplodocus'], ['spinosaurus', 'iguanodon'], ['ankylosaurus', 'allosaurus', 'parasaurolophus', 'brontosaurus', 'pachycephalosaurus', 'giganotosaurus', 'archaeopteryx'], ['therizinosaurus', 'microraptor', 'carnotaurus', 'baryonyx', 'megalosaurus', 'compsognathus', 'deinonychus', 'oviraptor', 'gallimimus', 'maiasaura', 'dilophosaurus', 'amargasaurus', 'argentinosaurus', 'kentrosaurus', 'nodosaurus', 'troodon', 'utahraptor', 'dreadnoughtus', 'hypsilophodon', 'scelidosaurus', 'edmontosaurus']),
 ];
+
+/** The niche bank with the extra offline answers merged in. */
+export const NICHE_PROMPTS: TriviaPrompt[] = NICHE_BASE.map((q) => {
+  const extra = { ...EXTRA_ANSWERS, ...EXTRA_ANSWERS_2 }[q.id];
+  if (!extra) return q;
+  const seen = new Set([
+    ...q.answers.common,
+    ...q.answers.fakeDeep,
+    ...q.answers.uncommon,
+    ...q.answers.rare,
+  ]);
+  const fresh = (list: string[] = []) => list.filter((a) => a && !seen.has(a) && (seen.add(a), true));
+  return {
+    ...q,
+    answers: {
+      ...q.answers,
+      uncommon: [...q.answers.uncommon, ...fresh(extra.uncommon)],
+      rare: [...q.answers.rare, ...fresh(extra.rare)],
+    },
+  };
+});

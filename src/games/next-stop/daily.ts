@@ -194,7 +194,7 @@ function matchesCandidate(normInput: string, candidate: string, exactOnly = fals
   if (normCand.length >= 5 && normCand.length >= normInput.length * 0.6 && padIn.includes(padCand)) return true;
   if (
     normInput.length >= 5 &&
-    normInput.length >= normCand.length * 0.6 &&
+    normInput.length >= normCand.length * 0.75 &&
     padCand.includes(padIn)
   ) {
     return true;
