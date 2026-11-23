@@ -16,6 +16,7 @@ export async function judgeAnswer(
   rawAnswer: string,
   timedOut: boolean,
   edition: GameEdition = 'next-stop',
+  opts: { exactOnly?: boolean } = {},
 ): Promise<JudgeResult> {
   if (timedOut && !rawAnswer.trim()) {
     return {
@@ -37,12 +38,12 @@ export async function judgeAnswer(
   }
 
   if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-    return evaluateLocalAnswer(prompt, trimmed);
+    return evaluateLocalAnswer(prompt, trimmed, opts);
   }
 
   const sample = await useCapability('sample');
   if (!sample) {
-    return evaluateLocalAnswer(prompt, trimmed);
+    return evaluateLocalAnswer(prompt, trimmed, opts);
   }
 
   const gameLabel = edition === 'next-stop-europe' ? 'NEXT STOP EUROPE' : 'NEXT STOP';
@@ -94,6 +95,6 @@ Reply with only a JSON object: {"valid": boolean, "tier": "INVALID"|"COMMON"|"FA
     };
   } catch {
     window.clearTimeout(timeoutId);
-    return evaluateLocalAnswer(prompt, trimmed);
+    return evaluateLocalAnswer(prompt, trimmed, opts);
   }
 }

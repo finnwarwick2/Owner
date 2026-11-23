@@ -267,7 +267,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
   }, [hasCanvas, phase, promptIdx, baseStations, edition, isUnlimited]);
 
   const handleSubmitAnswer = useCallback(
-    async (timedOut: boolean, override?: string) => {
+    async (timedOut: boolean, override?: string, exactOnly = false) => {
       if (submittingRef.current || phase !== 'prompt' || !activePrompt) return;
       submittingRef.current = true;
       setCorrection(null);
@@ -285,7 +285,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
 
       const minSuspense = new Promise((r) => window.setTimeout(r, 900));
       const [result] = await Promise.all([
-        judgeAnswer(activePrompt, submitted, timedOut, edition),
+        judgeAnswer(activePrompt, submitted, timedOut, edition, { exactOnly }),
         minSuspense,
       ]);
 
@@ -770,7 +770,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                     <button
                       type="button"
                       data-testid="keep-answer-btn"
-                      onClick={() => void handleSubmitAnswer(false, correction.typed)}
+                      onClick={() => void handleSubmitAnswer(false, correction.typed, true)}
                       className="n64-btn bg-[#3a3a44] text-[#f2ebdd] px-4 py-2.5 text-xs font-pixel cursor-pointer min-h-[44px]"
                     >
                       KEEP MINE

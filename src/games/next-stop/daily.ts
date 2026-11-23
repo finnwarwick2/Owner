@@ -181,16 +181,32 @@ export function levenshtein(a: string, b: string): number {
   return prev[b.length];
 }
 
-function matchesCandidate(normInput: string, candidate: string): boolean {
+function matchesCandidate(normInput: string, candidate: string, exactOnly = false): boolean {
   const normCand = normalizeAnswer(candidate);
   if (!normCand) return false;
   if (normInput === normCand) return true;
+  if (exactOnly) return normInput.replace(/ /g, '') === normCand.replace(/ /g, '');
 
-  if (normCand.length >= 5 && normInput.includes(normCand)) return true;
-  if (normInput.length >= 5 && normCand.includes(normInput)) return true;
+  // Whole-word containment only, e.g. "lake windermere" for "windermere",
+  // or "great pyramid" for "great pyramid of giza" — never a stray fragment.
+  const padIn = ` ${normInput} `;
+  const padCand = ` ${normCand} `;
+  if (normCand.length >= 5 && normCand.length >= normInput.length * 0.6 && padIn.includes(padCand)) return true;
+  if (
+    normInput.length >= 5 &&
+    normInput.length >= normCand.length * 0.6 &&
+    padCand.includes(padIn)
+  ) {
+    return true;
+  }
 
-  const maxDist = normCand.length >= 7 ? 2 : normCand.length >= 4 ? 1 : 0;
-  if (maxDist > 0 && Math.abs(normInput.length - normCand.length) <= maxDist) {
+  // Typos: same first letter, 1 slip for 5+ letters, 2 for 8+.
+  const maxDist = normCand.length >= 8 ? 2 : normCand.length >= 5 ? 1 : 0;
+  if (
+    maxDist > 0 &&
+    normInput[0] === normCand[0] &&
+    Math.abs(normInput.length - normCand.length) <= maxDist
+  ) {
     return levenshtein(normInput, normCand) <= maxDist;
   }
   return false;
@@ -268,6 +284,7 @@ function pickQuip(tier: RarityTier, seedStr: string): string {
 export function evaluateLocalAnswer(
   prompt: TriviaPrompt,
   rawAnswer: string,
+  opts: { exactOnly?: boolean } = {},
 ): JudgeResult {
   const norm = normalizeAnswer(rawAnswer);
   if (!norm) {
@@ -280,7 +297,7 @@ export function evaluateLocalAnswer(
   }
 
   for (const cand of prompt.answers.rare) {
-    if (matchesCandidate(norm, cand)) {
+    if (matchesCandidate(norm, cand, opts.exactOnly)) {
       return {
         valid: true,
         tier: 'LEGENDARY',
@@ -290,7 +307,7 @@ export function evaluateLocalAnswer(
     }
   }
   for (const cand of prompt.answers.uncommon) {
-    if (matchesCandidate(norm, cand)) {
+    if (matchesCandidate(norm, cand, opts.exactOnly)) {
       return {
         valid: true,
         tier: 'UNCOMMON',
@@ -300,7 +317,7 @@ export function evaluateLocalAnswer(
     }
   }
   for (const cand of prompt.answers.fakeDeep) {
-    if (matchesCandidate(norm, cand)) {
+    if (matchesCandidate(norm, cand, opts.exactOnly)) {
       return {
         valid: true,
         tier: 'FAKE_DEEP',
@@ -310,7 +327,7 @@ export function evaluateLocalAnswer(
     }
   }
   for (const cand of prompt.answers.common) {
-    if (matchesCandidate(norm, cand)) {
+    if (matchesCandidate(norm, cand, opts.exactOnly)) {
       return {
         valid: true,
         tier: 'COMMON',
@@ -320,22 +337,13 @@ export function evaluateLocalAnswer(
     }
   }
 
-  if (!looksPlausibleOffline(norm)) {
-    return {
-      valid: false,
-      tier: 'INVALID',
-      reason: pickQuip('INVALID', norm),
-      source: 'local',
-    };
-  }
-
-  // Offline plausible non-banked entry: reward specificity gently
-  const wordCount = norm.split(' ').length;
-  const tier: RarityTier = wordCount >= 2 || norm.length >= 10 ? 'RARE' : 'UNCOMMON';
+  // Not on this question's answer list: no train. (Accepting any word that
+  // merely looked plausible let made-up answers score.)
+  void looksPlausibleOffline;
   return {
-    valid: true,
-    tier,
-    reason: `${pickQuip(tier, norm)} (Offline Judge)`,
+    valid: false,
+    tier: 'INVALID',
+    reason: `${pickQuip('INVALID', norm)} We don't recognise that answer.`,
     source: 'local',
   };
 }

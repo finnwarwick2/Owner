@@ -105,3 +105,14 @@ test('station and biome helpers clamp in daily mode and wrap cleanly in unlimite
   assert.equal(lap2Start.name, 'Waterloo Wharf');
   assert.equal(getBiomeForStation('next-stop', 41, true).id, 'countryside');
 });
+
+test('evaluateLocalAnswer rejects made-up or off-topic answers', () => {
+  const africa = PROMPT_BANK.find((p) => p.prompt === 'Name a capital city in Africa');
+  assert.ok(africa);
+  for (const junk of ['banana', 'london', 'paris', 'potato', 'hello there', 'xyzzy', 'kinshasaville town']) {
+    assert.equal(evaluateLocalAnswer(africa, junk).tier, 'INVALID', junk);
+  }
+  assert.equal(evaluateLocalAnswer(africa, 'Nairobi').valid, true);
+  assert.equal(evaluateLocalAnswer(africa, 'nairobbi').valid, true); // small typo still counts
+  assert.equal(evaluateLocalAnswer(africa, 'Ouagadougou').tier, 'LEGENDARY');
+});
