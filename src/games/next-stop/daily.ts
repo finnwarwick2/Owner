@@ -350,8 +350,18 @@ export function evaluateLocalAnswer(
   };
 }
 
+const ROMAN = /^(i{1,3}|iv|v|vi{1,3}|ix|x)$/;
+
 function displayCase(answer: string): string {
-  return answer.replace(/\b([a-z])/g, (m) => m.toUpperCase());
+  return answer
+    .split(' ')
+    .map((word, i) => {
+      if (i > 0 && ROMAN.test(word)) return word.toUpperCase(); // Henry VIII, Cullinan II
+      if (word === 's' && i > 0) return "'s"; // "idol s eye" -> "idol's eye"
+      return word.replace(/^([a-z])/, (m) => m.toUpperCase());
+    })
+    .join(' ')
+    .replace(/ 's\b/g, "'s");
 }
 
 /**
@@ -394,4 +404,47 @@ export const UNLIMITED_PLAY_DATES: string[] = ['2026-11-20'];
 
 export function isUnlimitedPlayDay(dateKey: string = getLocalDateKey()): boolean {
   return UNLIMITED_PLAY_DATES.includes(dateKey);
+}
+
+export interface AnswerSheet {
+  /** The single best (most obscure) answer, and the level it would have scored. */
+  bullet: string | null;
+  bulletTier: RarityTier | null;
+  /** Up to `perTier` example answers for each level, rarest level first. */
+  tiers: Array<{ tier: RarityTier; answers: string[] }>;
+}
+
+const SHEET_ORDER: RarityTier[] = ['LEGENDARY', 'RARE', 'UNCOMMON', 'FAKE_DEEP', 'COMMON'];
+
+/** Grades every known answer for a question and picks the top examples per level. */
+export function getAnswerSheet(prompt: TriviaPrompt, perTier = 10): AnswerSheet {
+  const graded = new Map<string, { label: string; tier: RarityTier; score: number; order: number }>();
+  let order = 0;
+  const add = (list: string[], tierOf: (a: string) => RarityTier) => {
+    for (const a of list) {
+      const key = normalizeAnswer(a).replace(/^the /, '').replace(/ /g, '');
+      if (!key || graded.has(key)) continue;
+      graded.set(key, {
+        label: displayCase(a.trim()),
+        tier: tierOf(a),
+        score: OBSCURITY[normalizeAnswer(a)] ?? 2,
+        order: order++,
+      });
+    }
+  };
+  add(prompt.answers.common, () => 'COMMON');
+  add(prompt.answers.fakeDeep, () => 'FAKE_DEEP');
+  add(prompt.answers.uncommon, () => 'UNCOMMON');
+  add(prompt.answers.rare, deepCutTier);
+
+  const all = [...graded.values()];
+  const tiers = SHEET_ORDER.map((tier) => {
+    const inTier = all.filter((g) => g.tier === tier);
+    const deep = tier === 'LEGENDARY' || tier === 'RARE' || tier === 'UNCOMMON';
+    // Deep levels: most obscure first (hand-picked answers win ties). Others: list order.
+    inTier.sort((x, y) => (deep ? x.score - y.score || x.order - y.order : x.order - y.order));
+    return { tier, answers: inTier.slice(0, perTier).map((g) => g.label) };
+  });
+  const best = tiers.find((t) => t.answers.length > 0);
+  return { bullet: best?.answers[0] ?? null, bulletTier: best?.tier ?? null, tiers };
 }

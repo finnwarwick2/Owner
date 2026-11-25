@@ -16,6 +16,7 @@ import {
 import { isDevMode, isEuropeUnlocked } from '../services/stripeCheckout';
 import { isUnlimitedPlayDay } from '../games/next-stop/daily';
 import type { PlayerProfile } from '../types/arcade';
+import { AnswerSheet } from './AnswerSheet';
 import { CrowdedTrainChart } from './CrowdedTrainChart';
 import { RouteMinimap } from './RouteMinimap';
 
@@ -221,6 +222,8 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
             );
           })}
         </div>
+
+        {run.completed && <AnswerSheet attempts={run.attempts} />}
 
         {/* Actions */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
