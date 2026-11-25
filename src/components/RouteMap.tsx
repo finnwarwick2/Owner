@@ -258,7 +258,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
             // Each region's revealed land takes its own colour
             const top = i === bands.length - 1 ? 0 : pointAt(biome.maxStation + 0.5).y;
             const bottom = i === 0 ? H : pointAt(biome.minStation - 0.5).y;
-            const land = { desert: '#f0c27e', mountains: '#8fc47a', city: '#b9b0cc' }[biome.id as string] ?? PAL.land;
+            const land = { desert: '#f0c27e', mountains: '#8fc47a', coast: '#a9dcef', city: '#b9b0cc' }[biome.id as string] ?? PAL.land;
             return <rect key={biome.id} x={0} y={top} width={W} height={bottom - top} fill={land} />;
           })}
           <rect width={W} height={H} fill={`url(#grain-${uid})`} opacity={0.18} />

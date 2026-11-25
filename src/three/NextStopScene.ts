@@ -95,7 +95,7 @@ function periodicHeight(x: number, z: number, period: number, seed: number): num
   );
 }
 
-type RegionId = 'countryside' | 'desert' | 'mountains' | 'city';
+type RegionId = 'countryside' | 'mountains' | 'desert' | 'coast' | 'city';
 
 /** Sky haze, ground and light colours for each region of the line. */
 const REGION_LOOKS: Record<RegionId, {
@@ -107,11 +107,12 @@ const REGION_LOOKS: Record<RegionId, {
   countryside: { fog: '#cfe6f5', fogNear: 40, fogFar: 230, ground: '#6aae4f', nearGround: '#6fae52', hemiSky: '#e4f3ff', hemiGround: '#7a9a55', hemiIntensity: 1.3, sun: '#fff3d6', sunIntensity: 1.75 },
   desert: { fog: '#f6b073', fogNear: 45, fogFar: 240, ground: '#d99a55', nearGround: '#e3aa66', hemiSky: '#ffd6a8', hemiGround: '#a8642e', hemiIntensity: 1.25, sun: '#ffb36b', sunIntensity: 1.7 },
   mountains: { fog: '#d6e8f7', fogNear: 45, fogFar: 260, ground: '#3e7a3e', nearGround: '#4f8f45', hemiSky: '#e6f2ff', hemiGround: '#4a6b3a', hemiIntensity: 1.3, sun: '#fff8e8', sunIntensity: 1.8 },
+  coast: { fog: '#d3eef9', fogNear: 45, fogFar: 260, ground: '#e8d6a0', nearGround: '#ead9a6', hemiSky: '#e8f7ff', hemiGround: '#b8a06a', hemiIntensity: 1.35, sun: '#fff6e0', sunIntensity: 1.8 },
   city: { fog: '#7a4f86', fogNear: 40, fogFar: 230, ground: '#4a4458', nearGround: '#5a5566', hemiSky: '#ffb38a', hemiGround: '#3a2f55', hemiIntensity: 1.15, sun: '#ff9e7a', sunIntensity: 1.5 },
 };
 
 function regionForBiome(id: string): RegionId {
-  return id === 'desert' || id === 'mountains' || id === 'city' ? id : 'countryside';
+  return id === 'desert' || id === 'mountains' || id === 'coast' || id === 'city' ? id : 'countryside';
 }
 
 function toBackground(obj: THREE.Object3D) {
@@ -147,6 +148,8 @@ export class NextStopSceneController {
   private sceneryItems: SceneryItem[] = [];
   private birds: { group: THREE.Object3D; wingL: THREE.Object3D; wingR: THREE.Object3D; phase: number; vx: number; baseY: number }[] = [];
   private waterfallTextures: THREE.Texture[] = [];
+  private seaTexture: THREE.Texture | null = null;
+  private boats: THREE.Object3D[] = [];
   private regionGroups = {} as Record<RegionId, THREE.Group>;
   private region: RegionId = 'countryside';
   private buildTarget!: THREE.Object3D;
@@ -281,8 +284,9 @@ export class NextStopSceneController {
     // Each region of the line has its own sky, terrain and props.
     const regions: Array<[RegionId, () => void]> = [
       ['countryside', () => { this.buildSunnySky(); this.buildCountryside(); this.buildWildlife(); }],
-      ['desert', () => this.buildDesert()],
       ['mountains', () => this.buildMountains()],
+      ['desert', () => this.buildDesert()],
+      ['coast', () => this.buildCoast()],
       ['city', () => this.buildCity()],
     ];
     for (const [id, build] of regions) {
@@ -658,7 +662,7 @@ export class NextStopSceneController {
     }
   }
 
-  // ── Region 2: the desert at sunset ──
+  // ── Region 3: the desert at sunset ──
   private buildDesert() {
     this.buildSkyPlane((ctx, w, h) => {
       const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -741,7 +745,7 @@ export class NextStopSceneController {
     });
   }
 
-  // ── Region 3: the mountains ──
+  // ── Region 2: the mountains ──
   private buildMountains() {
     this.buildSkyPlane((ctx, w, h) => {
       const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -809,7 +813,132 @@ export class NextStopSceneController {
     });
   }
 
-  // ── Region 4: the big city at dusk ──
+  // ── Region 4: the coast ──
+  private buildCoast() {
+    this.buildSkyPlane((ctx, w, h) => {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#0c5aa6');
+      g.addColorStop(0.4, '#2a8fd8');
+      g.addColorStop(0.52, '#6cc3f0');
+      g.addColorStop(0.6, '#c8ecfb');
+      g.addColorStop(1, '#e8f8ff');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      const sx = w * 0.7, sy = h * 0.47;
+      const glow = ctx.createRadialGradient(sx, sy, 8, sx, sy, 80);
+      glow.addColorStop(0, 'rgba(255,250,215,0.95)');
+      glow.addColorStop(1, 'rgba(255,250,215,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(sx - 80, sy - 80, 160, 160);
+      ctx.fillStyle = '#fff6c2';
+      ctx.beginPath(); ctx.arc(sx, sy, 20, 0, Math.PI * 2); ctx.fill();
+      for (const [cx, cy, k] of [[0.22, 0.45, 1], [0.45, 0.42, 0.7], [0.9, 0.5, 0.8]]) {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(w * cx, h * cy, 44 * k, 9 * k, 0, 0, Math.PI * 2);
+        ctx.arc(w * cx - 14 * k, h * cy - 7 * k, 13 * k, 0, Math.PI * 2);
+        ctx.arc(w * cx + 10 * k, h * cy - 11 * k, 16 * k, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    });
+
+    // The sea, from just beyond the beach to the horizon, with drifting wave flecks
+    const seaTex = createPixelCanvasTexture(32, 32, (ctx) => {
+      ctx.fillStyle = '#2f8fc7';
+      ctx.fillRect(0, 0, 32, 32);
+      ctx.fillStyle = '#3aa3d8';
+      for (let y = 0; y < 32; y += 4) ctx.fillRect((y * 7) % 32, y, 10, 1);
+      ctx.fillStyle = '#e8f7ff';
+      for (const [x, y] of [[3, 5], [19, 11], [9, 21], [26, 27], [14, 30]]) ctx.fillRect(x, y, 3, 1);
+    }, 30, 24);
+    this.seaTexture = seaTex;
+    const sea = new THREE.Mesh(new THREE.PlaneGeometry(420, 120), new THREE.MeshLambertMaterial({ map: seaTex }));
+    sea.rotation.x = -Math.PI / 2;
+    sea.position.set(0, 0.04, -77);
+    toBackground(sea);
+    this.buildTarget.add(sea);
+    // Surf line where sea meets sand
+    const surf = new THREE.Mesh(new THREE.PlaneGeometry(420, 1.2), new THREE.MeshLambertMaterial({ color: '#f4fbff' }));
+    surf.rotation.x = -Math.PI / 2;
+    surf.position.set(0, 0.06, -17.5);
+    toBackground(surf);
+    this.buildTarget.add(surf);
+
+    // Chalk headlands out to sea
+    const chalk = new THREE.Color('#f1ede0');
+    const turf = new THREE.Color('#7cbf5a');
+    this.addTerrainLayer({ zNear: -70, zFar: -100, maxHeight: 16, seed: 8.2, speed: 0.12, colorAt: (_t, h) => (h > 0.7 ? turf.clone() : chalk.clone().lerp(new THREE.Color('#d8d0bd'), 1 - h)) });
+
+    // Sailboats bobbing offshore
+    const hull = createN64Material({ color: '#f6efe2' });
+    const sails = ['#ffffff', '#ffb000', '#e5484d', '#7cc8f0'].map((c) => createN64Material({ color: c }));
+    this.scatter(6, 120, 0.2, -32, -55, (i) => {
+      const g = new THREE.Group();
+      const body = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.5, 0.8), hull);
+      body.position.y = 0.25;
+      const mast = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.8, 0.1), createN64Material({ color: '#6b4423' }));
+      mast.position.y = 1.7;
+      const sail = new THREE.Mesh(new THREE.ConeGeometry(0.9, 2.4, 3), sails[i % 4]);
+      sail.position.set(0.45, 1.8, 0);
+      sail.scale.z = 0.15;
+      g.add(body, mast, sail);
+      this.boats.push(g);
+      return g;
+    });
+
+    // A red-and-white lighthouse on a rocky point
+    const lighthouse = new THREE.Group();
+    const rockMat = createN64Material({ color: '#8b8f98', roughness: 0.95 });
+    const base = new THREE.Mesh(new THREE.DodecahedronGeometry(3, 0), rockMat);
+    base.scale.y = 0.5;
+    lighthouse.add(base);
+    for (let k = 0; k < 5; k++) {
+      const band = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.1 - k * 0.12, 1.2 - k * 0.12, 1.6, 10),
+        createN64Material({ color: k % 2 ? '#f6efe2' : '#d72638' }),
+      );
+      band.position.y = 1.4 + k * 1.6;
+      lighthouse.add(band);
+    }
+    const lamp = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.6, 0.9, 8), createN64Material({ color: '#fff2a8', emissive: '#ffd27a', emissiveIntensity: 1 }));
+    lamp.position.y = 9.8;
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(0.85, 1, 8), createN64Material({ color: '#2e2e37' }));
+    cap.position.y = 10.75;
+    lighthouse.add(lamp, cap);
+    lighthouse.position.set(22, 0, -36);
+    lighthouse.scale.setScalar(1.15);
+    toBackground(lighthouse);
+    this.buildTarget.add(lighthouse);
+    this.sceneryItems.push({ group: lighthouse, x: 22, speedFactor: 0.3, span: 120 });
+
+    // Beach huts, marram grass and rock pools along the sand
+    const hutColours = ['#e5484d', '#7cc8f0', '#ffd27a', '#9d6bff', '#8ad468', '#f2a7c3'];
+    const roof = createN64Material({ color: '#f6efe2' });
+    const grass = createN64Material({ color: '#9cb35a', roughness: 0.9 });
+    this.scatter(16, 96, 0.82, -8, -15, (i) => {
+      const g = new THREE.Group();
+      if (i % 4 === 3) {
+        for (let k = 0; k < 5; k++) {
+          const tuft = new THREE.Mesh(new THREE.ConeGeometry(0.25, 1.1, 4), grass);
+          tuft.position.set((k - 2) * 0.35, 0.55, (k % 2) * 0.3);
+          tuft.rotation.z = (k - 2) * 0.12;
+          g.add(tuft);
+        }
+        return g;
+      }
+      const hut = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 1.4), createN64Material({ color: hutColours[i % hutColours.length] }));
+      hut.position.y = 0.9;
+      const top = new THREE.Mesh(new THREE.ConeGeometry(1.25, 0.8, 4), roof);
+      top.rotation.y = Math.PI / 4;
+      top.position.y = 2.2;
+      const door = new THREE.Mesh(new THREE.BoxGeometry(0.6, 1.1, 0.05), createN64Material({ color: '#f6efe2' }));
+      door.position.set(0, 0.6, 0.72);
+      g.add(hut, top, door);
+      return g;
+    });
+  }
+
+  // ── Region 5: the big city at dusk ──
   private buildCity() {
     this.buildSkyPlane((ctx, w, h) => {
       const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -1217,7 +1346,7 @@ export class NextStopSceneController {
       this.showcaseX = -26;
       this.showcaseTierIdx++;
       this.buildShowcaseTrain();
-      const tour: RegionId[] = ['countryside', 'desert', 'mountains', 'city'];
+      const tour: RegionId[] = ['countryside', 'mountains', 'desert', 'coast', 'city'];
       this.showcaseRegionIdx = (this.showcaseRegionIdx + 1) % tour.length;
       this.setRegion(tour[this.showcaseRegionIdx]);
     }
@@ -1373,6 +1502,11 @@ export class NextStopSceneController {
     for (const t of this.waterfallTextures) {
       t.offset.y = (t.offset.y + dt * 1.6) % 1;
     }
+    if (this.seaTexture) this.seaTexture.offset.x = (this.seaTexture.offset.x + dt * 0.02) % 1;
+    this.boats.forEach((b, i) => {
+      b.rotation.z = Math.sin(elapsed * 1.3 + i) * 0.06;
+      b.position.y = 0.15 + Math.sin(elapsed * 1.7 + i * 2) * 0.08;
+    });
     if (this.showcase) {
       this.stepShowcase(dt, elapsed);
       return;
