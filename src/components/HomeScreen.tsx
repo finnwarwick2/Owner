@@ -218,7 +218,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <p className="text-sm leading-relaxed">
               You get 5 questions a day, the same for everyone. Type one answer to each
               within 20 seconds. Any correct answer counts, but rarer answers board
-              faster trains that skip more stations.
+              faster trains that skip more stations. Got one wrong? Keep guessing until the clock runs out.
             </p>
             <ul className="text-xs font-pixel space-y-2 text-[#c9c1b2]">
               <li>WRONG / NO ANSWER · 0 STN</li>

@@ -42,6 +42,12 @@ class ArcadeSoundEngine {
     return this.muted;
   }
 
+  /** Low double buzz for a wrong answer. */
+  playWrongBuzz() {
+    this.playTone(196, 0.12, 'square', 0.06, 0);
+    this.playTone(147, 0.18, 'square', 0.06, 0.12);
+  }
+
   private playTone(
     freq: number,
     duration: number,

@@ -1,5 +1,5 @@
 import React, { useId, useMemo } from 'react';
-import { getRouteBiomes } from '../games/next-stop/routes';
+import { getRouteBiomes, getRouteStations } from '../games/next-stop/routes';
 import {
   MAX_DAILY_STATIONS,
   TIER_COLORS,
@@ -199,6 +199,9 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 }) => {
   const uid = useId().replace(/:/g, '');
   const biomes = getRouteBiomes(edition);
+  const routeStations = getRouteStations(edition);
+  const firstName = (routeStations[0]?.name ?? 'Start').toUpperCase();
+  const lastName = (routeStations[routeStations.length - 1]?.name ?? 'Terminus').toUpperCase();
 
   const bands = useMemo(
     () =>
@@ -307,14 +310,14 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
         {/* Start and finish */}
         <g transform={`translate(${start.x} ${start.y + 12})`}>
-          <text textAnchor="middle" className="route-map-label" fill="#4a3b22">WATERLOO WHARF</text>
+          <text textAnchor="middle" className="route-map-label" fill="#4a3b22">{firstName}</text>
         </g>
         <g transform={`translate(${end.x} ${end.y})`}>
           <line x1={0} y1={0} x2={0} y2={-16} stroke="#4a3b22" strokeWidth={1.5} />
           <path d="M0 -16 L10 -12.5 L0 -9 Z" fill="#d72638" />
         </g>
         <text x={end.x + (end.x > W / 2 ? -16 : 16)} y={end.y - 4} textAnchor={end.x > W / 2 ? 'end' : 'start'} className="route-map-label" fill="#4a3b22">
-          TILBURY TERMINUS
+          {lastName}
         </text>
 
         {/* The train */}

@@ -282,3 +282,12 @@
   .route-map { transition: none; }
   .route-map-pulse { animation: none; }
 }
+
+.wrong-shake { animation: wrong-shake 0.35s ease-in-out; }
+@keyframes wrong-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+}
+@media (prefers-reduced-motion: reduce) { .wrong-shake { animation: none; } }

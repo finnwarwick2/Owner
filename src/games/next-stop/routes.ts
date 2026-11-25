@@ -101,20 +101,20 @@ export const MAINLINE_BIOMES: BiomeConfig[] = [
 ];
 
 const MAINLINE_STATION_NAMES: string[] = [
-  'Waterloo Wharf',
-  'Vauxhall Viaduct',
-  'Clapham Crossing',
-  'Surbiton Sidings',
-  'Woking Woods',
-  'Guildford Green',
-  'Haslemere Heath',
-  'Bramble Bridge',
-  'Pine Peak',
+  'Hedgerow Halt',
+  'Meadow Mill',
+  'Bluebell Bank',
+  'Cowslip Corner',
+  'Haystack Hollow',
+  'Orchard Oaks',
+  'Willow Wade',
+  'Foxglove Fields',
+  'Pinecrest Peak',
   'Glacier Gate',
   'Summit Sidings',
   'Alpine Arches',
   'Ridgeway Rocks',
-  'Frost Falls',
+  'Frostfall Ford',
   'Eagle Eyrie',
   'Snowline Summit',
   'Sandstone Springs',
@@ -141,7 +141,7 @@ const MAINLINE_STATION_NAMES: string[] = [
   'Docklands Depot',
   'Bright Boulevard',
   'Grand Gateway',
-  'Tilbury Terminus',
+  'Capital Central',
 ];
 
 export const EUROPE_BIOMES: BiomeConfig[] = [
@@ -378,13 +378,13 @@ export interface CareerMilestone {
 }
 
 export const CAREER_LINE_MILESTONES: CareerMilestone[] = [
-  { score: 0, station: 'Waterloo Depot', region: 'London' },
-  { score: 150, station: 'Brighton Pier', region: 'Sussex Coast' },
-  { score: 400, station: 'Channel Portal', region: 'Dover Strait' },
-  { score: 800, station: 'Gare du Nord', region: 'Paris' },
-  { score: 1300, station: 'Gotthard Crest', region: 'Swiss Alps' },
-  { score: 2000, station: 'Haydarpasa', region: 'Istanbul' },
-  { score: 3500, station: 'Samarkand Junction', region: 'Silk Road' },
-  { score: 6000, station: 'Baikal Loop', region: 'Siberia' },
-  { score: 9000, station: 'Shinjuku Terminus', region: 'Tokyo' },
+  { score: 0, station: 'Hedgerow Halt', region: 'The Meadowlands' },
+  { score: 150, station: 'Gullwing Pier', region: 'The Seagull Coast' },
+  { score: 400, station: 'Tunnel Twelve', region: 'The Chalk Downs' },
+  { score: 800, station: 'Lamplight Lanes', region: 'The Old Town' },
+  { score: 1300, station: 'Cragcrest Col', region: 'The High Peaks' },
+  { score: 2000, station: 'Bazaar Bridge', region: 'The Spice Sands' },
+  { score: 3500, station: 'Silkwind Junction', region: 'The Silk Steppe' },
+  { score: 6000, station: 'Frostpine Loop', region: 'The Taiga' },
+  { score: 9000, station: 'Skyspire Terminus', region: 'The Neon Capital' },
 ];

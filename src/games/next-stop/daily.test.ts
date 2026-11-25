@@ -104,7 +104,7 @@ test('station and biome helpers clamp in daily mode and wrap cleanly in unlimite
   assert.equal(getStationInfo('next-stop', 45, false).index, 40);
   const lap2Start = getStationInfo('next-stop', 41, true);
   assert.equal(lap2Start.index, 41);
-  assert.equal(lap2Start.name, 'Waterloo Wharf');
+  assert.equal(lap2Start.name, 'Hedgerow Halt');
   assert.equal(getBiomeForStation('next-stop', 41, true).id, 'countryside');
 });
 

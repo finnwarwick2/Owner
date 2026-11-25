@@ -137,6 +137,9 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
   const [scrambleText, setScrambleText] = useState('CHECKING TIMETABLE...');
   const [judgeResult, setJudgeResult] = useState<JudgeResult | null>(null);
   const [correction, setCorrection] = useState<{ typed: string; suggestion: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [wrongGuess, setWrongGuess] = useState<{ text: string; count: number } | null>(null);
+  const timeUpRef = useRef(false);
   const useCorrectionRef = useRef<HTMLButtonElement | null>(null);
   const [liveStationFloat, setLiveStationFloat] = useState(() =>
     isUnlimited ? 0 : currentRun.totalStations,
@@ -273,6 +276,9 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     setSecondsLeft(PROMPT_TIME_SECONDS);
     setAnswerText('');
     setCorrection(null);
+    setChecking(false);
+    setWrongGuess(null);
+    timeUpRef.current = false;
     setJudgeResult(null);
     setLiveStationFloat(baseStations);
     submittingRef.current = false;
@@ -283,15 +289,11 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     return () => window.clearTimeout(id);
   }, [hasCanvas, phase, promptIdx, baseStations, edition, isUnlimited]);
 
-  const handleSubmitAnswer = useCallback(
-    async (timedOut: boolean, override?: string, exactOnly = false) => {
-      if (submittingRef.current || phase !== 'prompt' || !activePrompt) return;
-      submittingRef.current = true;
-      setCorrection(null);
-
-      const submitted = (override ?? answerText).trim();
+  /** Flip the board, reveal the level and send the train (or no train). */
+  const runTrainSequence = useCallback(
+    async (submitted: string, timedOut: boolean, resultPromise: Promise<JudgeResult>) => {
+      if (!activePrompt) return;
       setPhase('suspense');
-
       const flipInterval = window.setInterval(() => {
         soundEngine.playBoardFlip();
         const text = Array.from({ length: 18 }, () =>
@@ -299,13 +301,8 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
         ).join('');
         setScrambleText(text);
       }, 90);
-
       const minSuspense = new Promise((r) => window.setTimeout(r, 900));
-      const [result] = await Promise.all([
-        judgeAnswer(activePrompt, submitted, timedOut, edition, { exactOnly }),
-        minSuspense,
-      ]);
-
+      const [result] = await Promise.all([resultPromise, minSuspense]);
       window.clearInterval(flipInterval);
 
       currentAttemptRef.current = {
@@ -323,16 +320,60 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
 
       window.setTimeout(() => {
         setPhase('arriving');
-        sceneRef.current?.triggerTrainSequence(
-          result.tier,
-          baseStations,
-          edition,
-          false,
-        );
+        sceneRef.current?.triggerTrainSequence(result.tier, baseStations, edition, false);
       }, 850);
     },
-    [phase, activePrompt, answerText, baseStations, edition, isUnlimited],
+    [activePrompt, baseStations, edition, isUnlimited],
   );
+
+  const handleSubmitAnswer = useCallback(
+    async (timedOut: boolean, override?: string, exactOnly = false) => {
+      if (phase !== 'prompt' || !activePrompt) return;
+      if (submittingRef.current) {
+        // Time ran out while an answer was being checked: finish once the check returns.
+        if (timedOut) timeUpRef.current = true;
+        return;
+      }
+      submittingRef.current = true;
+      setCorrection(null);
+      const submitted = (override ?? answerText).trim();
+
+      if (timedOut) {
+        // Out of time: whatever is typed is the final answer.
+        await runTrainSequence(submitted, true, judgeAnswer(activePrompt, submitted, true, edition, { exactOnly }));
+        return;
+      }
+      if (!submitted) {
+        submittingRef.current = false;
+        inputRef.current?.focus();
+        return;
+      }
+
+      // Check the answer while the clock keeps running.
+      setChecking(true);
+      const result = await judgeAnswer(activePrompt, submitted, false, edition, { exactOnly });
+      setChecking(false);
+
+      if (!result.valid) {
+        if (timeUpRef.current) {
+          await runTrainSequence(submitted, true, Promise.resolve({ ...result, source: 'timeout' as const, reason: 'Time ran out before a valid answer arrived.' }));
+          return;
+        }
+        // Wrong: have another go. The timer does not reset.
+        soundEngine.playWrongBuzz();
+        setWrongGuess((prev) => ({ text: submitted, count: (prev?.count ?? 0) + 1 }));
+        setAnswerText('');
+        submittingRef.current = false;
+        window.setTimeout(() => inputRef.current?.focus(), 30);
+        return;
+      }
+
+      await runTrainSequence(submitted, false, Promise.resolve(result));
+    },
+    [phase, activePrompt, answerText, edition, runTrainSequence],
+  );
+  const submitRef = useRef(handleSubmitAnswer);
+  submitRef.current = handleSubmitAnswer;
 
   // 20-second countdown
   useEffect(() => {
@@ -341,14 +382,14 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
       setSecondsLeft((prev) => {
         if (prev <= 1) {
           window.clearInterval(id);
-          void handleSubmitAnswer(true);
+          void submitRef.current(true);
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => window.clearInterval(id);
-  }, [hasCanvas, phase, handleSubmitAnswer]);
+  }, [hasCanvas, phase]);
 
   const startUnlimitedRun = useCallback(() => {
     if (!canUseUnlimited) return;
@@ -609,11 +650,25 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
 
         {/* Bottom Zone: Input OR Tier Reveal OR Arrival Card */}
         <div className="w-full max-w-xl mx-auto pointer-events-auto">
+          {phase === 'prompt' && wrongGuess && (
+            <div
+              key={wrongGuess.count}
+              className="wrong-shake mb-2 bg-[#16161b] border-2 border-[#e5484d] px-3 py-2 text-center"
+              role="status"
+              data-testid="wrong-answer"
+            >
+              <span className="font-pixel text-[11px] text-[#e5484d]">NOT ON THE TIMETABLE</span>
+              <span className="text-xs text-[#f2ebdd] ml-2">
+                <span className="line-through decoration-[#e5484d]">{wrongGuess.text}</span> isn't right. Try again!
+              </span>
+            </div>
+          )}
+
           {phase === 'prompt' && (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                if (correction) return;
+                if (correction || checking) return;
                 const suggestion = activePrompt ? suggestCorrection(activePrompt, answerText) : null;
                 if (suggestion) {
                   soundEngine.playUiClick();
@@ -684,9 +739,10 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
               />
               <button
                 type="submit"
-                className="n64-btn bg-[#ffb000] text-[#1e1e24] px-4 py-2.5 text-xs font-pixel cursor-pointer whitespace-nowrap min-h-[44px]"
+                disabled={checking}
+                className="n64-btn bg-[#ffb000] text-[#1e1e24] px-4 py-2.5 text-xs font-pixel cursor-pointer whitespace-nowrap min-h-[44px] disabled:opacity-70"
               >
-                BOARD TRAIN
+                {checking ? 'CHECKING…' : 'BOARD TRAIN'}
               </button>
             </form>
           )}
