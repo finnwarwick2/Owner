@@ -4,7 +4,7 @@ import { soundEngine } from '../audio/soundEngine';
 import {
   createUnlimitedPromptDeck,
   getLocalDateKey,
-  isUnlimitedPlayDay,
+  isUnlimitedOpen,
   pickDailyPrompts,
   suggestCorrection,
 } from '../games/next-stop/daily';
@@ -71,7 +71,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
   const [unlocked, setUnlocked] = useState(() =>
     edition === 'next-stop-europe' ? isEuropeUnlocked() : true,
   );
-  const canUseUnlimited = edition === 'next-stop' && (isDevMode() || isUnlimitedPlayDay());
+  const canUseUnlimited = edition === 'next-stop' && (isDevMode() || isUnlimitedOpen());
   const [playMode, setPlayMode] = useState<'daily' | 'unlimited'>(() =>
     canUseUnlimited && launchMode === 'unlimited' ? 'unlimited' : 'daily',
   );
@@ -449,7 +449,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
             <div>
               <p className="text-[11px] font-pixel text-[#ffb000] mb-1 flex items-center gap-1.5">
                 <InfinityIcon className="w-3.5 h-3.5" />
-                NEXT STOP · UNLIMITED (TODAY ONLY)
+                NEXT STOP · UNLIMITED
               </p>
               <h1 className="text-lg sm:text-2xl font-pixel text-[#f2ebdd] leading-snug">
                 <span className="text-[#ffb000] tabular-nums">

@@ -39,6 +39,7 @@ function LoadingBoard() {
 
 export default function App() {
   const [activeEdition, setActiveEdition] = useState<GameEdition | null>(getInitialEdition);
+  const [launchMode, setLaunchMode] = useState<'daily' | 'unlimited'>('daily');
   const [profile] = useState<PlayerProfile>(() => loadProfile());
   const [saveData, setSaveData] = useState<NextStopSaveData>(() =>
     loadNextStopSave('next-stop'),
@@ -98,18 +99,21 @@ export default function App() {
       {activeEdition ? (
         <Suspense fallback={<LoadingBoard />}>
           <NextStopGame
-            key={activeEdition}
+            key={`${activeEdition}-${launchMode}`}
             edition={activeEdition}
             profile={profile}
             muted={muted}
-            launchMode="daily"
+            launchMode={launchMode}
             onToggleMute={handleToggleMute}
             onExitToHub={goHome}
             onOpenProfileStats={() => setStatsOpen(true)}
             onProfileChange={() => {}}
             onProgressUpdated={handleProgressUpdated}
             onUnlockStateChanged={() => setUnlockVersion((v) => v + 1)}
-            onSwitchEdition={(ed) => setActiveEdition(ed)}
+            onSwitchEdition={(ed) => {
+              setLaunchMode('daily');
+              setActiveEdition(ed);
+            }}
           />
         </Suspense>
       ) : (
@@ -121,7 +125,13 @@ export default function App() {
           onToggleMute={handleToggleMute}
           onPlay={(ed) => {
             soundEngine.stopMenuLoop();
+            setLaunchMode('daily');
             setActiveEdition(ed);
+          }}
+          onPlayUnlimited={() => {
+            soundEngine.stopMenuLoop();
+            setLaunchMode('unlimited');
+            setActiveEdition('next-stop');
           }}
           onOpenStats={() => setStatsOpen(true)}
         />

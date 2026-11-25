@@ -14,7 +14,7 @@ import {
   type DailyDistributionResult,
 } from '../services/scoreDistribution';
 import { isDevMode, isEuropeUnlocked } from '../services/stripeCheckout';
-import { isUnlimitedPlayDay } from '../games/next-stop/daily';
+import { hasUnlimitedPass, isUnlimitedOpen } from '../games/next-stop/daily';
 import type { PlayerProfile } from '../types/arcade';
 import { AnswerSheet } from './AnswerSheet';
 import { CrowdedTrainChart } from './CrowdedTrainChart';
@@ -114,13 +114,13 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
           </div>
         </div>
 
-        {edition === 'next-stop' && isUnlimitedPlayDay() && onPlayUnlimited && (
+        {edition === 'next-stop' && isUnlimitedOpen() && onPlayUnlimited && (
           <div
             className="n64-panel border-[#ffb000] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             data-testid="unlimited-today-banner"
           >
             <div>
-              <p className="text-sm font-pixel text-[#ffb000]">UNLIMITED PLAY IS ON TODAY</p>
+              <p className="text-sm font-pixel text-[#ffb000]">{hasUnlimitedPass() ? 'YOU HAVE AN UNLIMITED PASS' : 'UNLIMITED PLAY IS ON TODAY'}</p>
               <p className="text-xs text-[#c9c1b2] mt-1">
                 Keep answering new questions for as long as you like. Your daily score stays as it is.
               </p>
@@ -237,7 +237,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
               HOME
             </button>
 
-            {edition === 'next-stop' && (isDevMode() || isUnlimitedPlayDay()) && onPlayUnlimited && (
+            {edition === 'next-stop' && (isDevMode() || isUnlimitedOpen()) && onPlayUnlimited && (
               <button
                 type="button"
                 onClick={onPlayUnlimited}
@@ -245,7 +245,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
                 className="n64-btn bg-[#ffb000] text-[#1e1e24] px-5 py-3 text-xs font-pixel flex items-center gap-2 cursor-pointer whitespace-nowrap"
               >
                 <InfinityIcon className="w-4 h-4" />
-                {isUnlimitedPlayDay() ? 'KEEP PLAYING · UNLIMITED TODAY' : 'DEV: UNLIMITED MODE'}
+                {isUnlimitedOpen() ? 'KEEP PLAYING · UNLIMITED' : 'DEV: UNLIMITED MODE'}
               </button>
             )}
           </div>

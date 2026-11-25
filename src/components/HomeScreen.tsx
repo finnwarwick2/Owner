@@ -4,6 +4,7 @@ import { soundEngine } from '../audio/soundEngine';
 import {
   formatCountdown,
   getLocalDateKey,
+  isUnlimitedOpen,
   msUntilLocalMidnight,
   parseDateKeyToDayNumber,
 } from '../games/next-stop/daily';
@@ -20,6 +21,7 @@ interface HomeScreenProps {
   muted: boolean;
   onToggleMute: () => void;
   onPlay: (edition: GameEdition) => void;
+  onPlayUnlimited?: () => void;
   onOpenStats: () => void;
 }
 
@@ -39,6 +41,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   muted,
   onToggleMute,
   onPlay,
+  onPlayUnlimited,
   onOpenStats,
 }) => {
   const dateKey = useMemo(() => getLocalDateKey(), []);
@@ -149,6 +152,20 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           >
             {mainLabel}
           </button>
+
+          {onPlayUnlimited && isUnlimitedOpen() && (
+            <button
+              type="button"
+              data-testid="home-unlimited-btn"
+              onClick={() => {
+                soundEngine.playUiClick();
+                onPlayUnlimited();
+              }}
+              className="n64-btn mt-3 w-full bg-[#3a3a44] text-[#ffd27a] py-3 text-sm font-pixel cursor-pointer"
+            >
+              ∞ UNLIMITED PLAY
+            </button>
+          )}
 
           {main.state === 'done' && (
             <p className="mt-3 text-xs font-pixel text-[#9a9386] tabular-nums">

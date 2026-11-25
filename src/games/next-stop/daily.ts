@@ -448,3 +448,39 @@ export function getAnswerSheet(prompt: TriviaPrompt, perTier = 10): AnswerSheet 
   const best = tiers.find((t) => t.answers.length > 0);
   return { bullet: best?.answers[0] ?? null, bulletTier: best?.tier ?? null, tiers };
 }
+
+// ── Personal unlimited pass ──
+// Opening the site with #unlimited-pass-ns7q4k (once) unlocks unlimited play
+// on that device for good; #unlimited-pass-off removes it again.
+const UNLIMITED_PASS_KEY = 'nextstop_unlimited_pass_v1';
+const UNLIMITED_PASS_HASH = '#unlimited-pass-ns7q4k';
+
+export function claimUnlimitedPassFromUrl(): void {
+  if (typeof window === 'undefined') return;
+  const hash = window.location.hash;
+  if (hash !== UNLIMITED_PASS_HASH && hash !== '#unlimited-pass-off') return;
+  try {
+    if (hash === UNLIMITED_PASS_HASH) window.localStorage.setItem(UNLIMITED_PASS_KEY, '1');
+    else window.localStorage.removeItem(UNLIMITED_PASS_KEY);
+  } catch {
+    // storage blocked: the pass just won't stick
+  }
+  try {
+    window.history.replaceState(null, '', window.location.pathname + window.location.search);
+  } catch {
+    window.location.hash = '';
+  }
+}
+
+export function hasUnlimitedPass(): boolean {
+  try {
+    return typeof window !== 'undefined' && window.localStorage.getItem(UNLIMITED_PASS_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Unlimited play is open on special days, or always for pass holders. */
+export function isUnlimitedOpen(): boolean {
+  return isUnlimitedPlayDay() || hasUnlimitedPass();
+}
