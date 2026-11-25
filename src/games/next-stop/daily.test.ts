@@ -72,11 +72,11 @@ test('evaluateLocalAnswer maps each answer list to its tier', () => {
 
 test('deep cuts are graded by obscurity, so famous ones score less', () => {
   const g = (id: string) => PROMPT_BANK.find((p) => p.id === id)!;
-  assert.equal(evaluateLocalAnswer(g('n029'), 'sampi').tier, 'LEGENDARY');
+  assert.equal(evaluateLocalAnswer(g('f014'), 'zuckuss').tier, 'LEGENDARY');
+  assert.equal(evaluateLocalAnswer(g('f014'), 'greedo').tier, 'RARE');
+  assert.equal(evaluateLocalAnswer(g('f001'), 'sniffer').tier, 'UNCOMMON');
+  assert.equal(evaluateLocalAnswer(g('f001'), 'creeper').tier, 'COMMON');
   assert.equal(evaluateLocalAnswer(g('n063'), 'klaberjass').tier, 'LEGENDARY');
-  assert.equal(evaluateLocalAnswer(g('n080'), 'nebbiolo').tier, 'RARE');
-  assert.equal(evaluateLocalAnswer(g('n079'), 'sidecar').tier, 'UNCOMMON');
-  assert.equal(evaluateLocalAnswer(g('n023'), 'garlic').tier, 'COMMON');
 });
 
 test('normalizeAnswer strips punctuation and diacritics', () => {

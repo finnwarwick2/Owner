@@ -1,5 +1,7 @@
 import type { TriviaPrompt } from './types';
-import { NICHE_PROMPTS } from './promptsNiche';
+import { NICHE_PROMPTS, tierPrompt } from './promptsNiche';
+import { EXTRA_PROMPTS } from './promptsExtra';
+import { FUN_PROMPTS } from './promptsFun';
 
 function p(
   id: string,
@@ -181,6 +183,26 @@ const BASE_PROMPTS: TriviaPrompt[] = [
   p('p160', 'SPACE', 'Name a famous comet or meteor shower', ['halley', 'halleys comet', 'perseids', 'leonids'], ['hale bopp', 'shoemaker levy', 'geminids', 'orionids'], ['neowise', 'quadrantids', 'hyakutake', 'encke'], ['67p', 'churyumov gerasimenko', 'tsuchinshan atlas', 'swift tuttle', 'tempel tuttle', 'lyrids', 'draconids']),
 ];
 
-// The broad starter prompts are kept for reference; play uses the niche bank.
-void BASE_PROMPTS;
-export const PROMPT_BANK: TriviaPrompt[] = NICHE_PROMPTS;
+// Today's mix: fun pop-culture questions first, the best of the original
+// pop-culture set, and a handful of friendlier niche questions.
+const CLASSIC_IDS = [
+  'p003', 'p012', 'p024', 'p035', 'p053', 'p055', 'p065', 'p075', 'p088', 'p105', 'p109', 'p115',
+  'p140', 'p142', 'p148', 'p149', 'p156', 'x001', 'x002', 'x003', 'x004', 'x005', 'x006', 'x007',
+  'x008', 'x009', 'x010', 'x011', 'x012', 'x013', 'x020', 'x021', 'x024', 'x025', 'x026', 'x027',
+  'x029', 'x031', 'x055', 'x060', 'x061', 'x073',
+];
+const NICHE_IDS = ['n051', 'n060', 'n063', 'n068', 'n079', 'n085', 'n100'];
+
+const CLASSICS = [...BASE_PROMPTS, ...EXTRA_PROMPTS];
+const pick = (bank: TriviaPrompt[], ids: string[]) =>
+  ids.map((id) => {
+    const q = bank.find((p) => p.id === id);
+    if (!q) throw new Error(`Missing prompt ${id}`);
+    return q;
+  });
+
+export const PROMPT_BANK: TriviaPrompt[] = [
+  ...FUN_PROMPTS.map((q) => tierPrompt(q)),
+  ...pick(CLASSICS, CLASSIC_IDS).map((q) => tierPrompt(q)),
+  ...pick(NICHE_PROMPTS, NICHE_IDS),
+];

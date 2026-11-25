@@ -145,8 +145,10 @@ const NICHE_BASE: TriviaPrompt[] = [
  *   fakeDeep (Uncommon, 2 stn)  = clichéd "clever" picks + solid-but-known answers
  *   rare     (Rare 4 / Epic 6 / Legendary 8) = deep cuts, graded by obscurity.ts
  */
-export const NICHE_PROMPTS: TriviaPrompt[] = NICHE_BASE.map((q) => {
-  const extra = { ...EXTRA_ANSWERS, ...EXTRA_ANSWERS_2 }[q.id] ?? {};
+export function tierPrompt(
+  q: TriviaPrompt,
+  extra: { uncommon?: string[]; rare?: string[] } = {},
+): TriviaPrompt {
   const seen = new Set<string>();
   const uniq = (list: string[] = []) => list.filter((a) => a && !seen.has(a) && (seen.add(a), true));
   // Claim the stingiest tier first so duplicates land low, not high.
@@ -156,4 +158,8 @@ export const NICHE_PROMPTS: TriviaPrompt[] = NICHE_BASE.map((q) => {
   const rare = uniq([...q.answers.rare, ...(extra.rare ?? [])]);
   const uncommon: string[] = [];
   return { ...q, answers: { common, fakeDeep, uncommon, rare } };
-});
+}
+
+export const NICHE_PROMPTS: TriviaPrompt[] = NICHE_BASE.map((q) =>
+  tierPrompt(q, { ...EXTRA_ANSWERS, ...EXTRA_ANSWERS_2 }[q.id] ?? {}),
+);
