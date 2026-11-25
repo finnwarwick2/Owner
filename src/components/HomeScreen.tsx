@@ -200,7 +200,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <h2 className="font-pixel text-sm text-[#ffb000]">HOW TO PLAY</h2>
             <p className="text-sm leading-relaxed">
               You get 5 questions a day, the same for everyone. Type one answer to each
-              within 30 seconds. Any correct answer counts, but rarer answers board
+              within 20 seconds. Any correct answer counts, but rarer answers board
               faster trains that skip more stations.
             </p>
             <ul className="text-xs font-pixel space-y-2 text-[#c9c1b2]">

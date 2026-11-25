@@ -234,3 +234,51 @@
 @media (prefers-reduced-motion: reduce) {
   .led-marquee { animation: none; padding-left: 0; }
 }
+
+/* Parchment route map (bottom-right in game) */
+.route-map {
+  width: 104px;
+  background: #1e1e24;
+  border: 3px solid #0e0e12;
+  box-shadow: 0 5px 0 rgba(14, 14, 18, 0.55);
+  transition: width 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.route-map-expanded { width: 168px; }
+@media (min-width: 640px) {
+  .route-map { width: 150px; }
+  .route-map-expanded { width: 250px; }
+}
+@media (min-width: 1280px) {
+  .route-map { width: 170px; }
+  .route-map-expanded { width: 300px; }
+}
+.route-map-label {
+  font-family: 'Silkscreen', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+.route-map-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+  padding: 4px 6px;
+  font-family: 'Silkscreen', 'Courier New', monospace;
+  font-size: 9px;
+  color: #f2ebdd;
+  font-variant-numeric: tabular-nums;
+}
+.route-map-expanded .route-map-stats { font-size: 11px; }
+.route-map-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: route-pulse 1.2s ease-in-out infinite;
+}
+@keyframes route-pulse {
+  0%, 100% { transform: scale(0.7); opacity: 0.35; }
+  50% { transform: scale(1.15); opacity: 0.1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-map { transition: none; }
+  .route-map-pulse { animation: none; }
+}

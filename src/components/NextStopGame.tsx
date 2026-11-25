@@ -35,7 +35,7 @@ import type { GamePlayProps } from '../types/arcade';
 import { EuropePaywallScreen } from './EuropePaywallScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { RouteMinimap } from './RouteMinimap';
-import { JourneyMinimap } from './JourneyMinimap';
+import { RouteMap, type RouteLeg } from './RouteMap';
 
 type GamePhase =
   | 'prompt'
@@ -47,7 +47,7 @@ type GamePhase =
   | 'results'
   | 'unlimited_summary';
 
-const PROMPT_TIME_SECONDS = 30;
+const PROMPT_TIME_SECONDS = 20;
 const SCRAMBLE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789?';
 
 interface NextStopGameProps extends GamePlayProps {
@@ -570,7 +570,19 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     dailyPrompts.length,
     Math.max(1, answeredCount + (phase === 'arrived' ? 0 : 1)),
   );
-  const answeredTiers = currentRun.attempts.map((a) => a.tier);
+  // Legs of today's journey for the route map, plus the one being ridden now.
+  const routeLegs: RouteLeg[] = [];
+  {
+    let at = 0;
+    for (const a of currentRun.attempts) {
+      routeLegs.push({ from: at, to: Math.min(MAX_DAILY_STATIONS, at + a.stations), tier: a.tier });
+      at = Math.min(MAX_DAILY_STATIONS, at + a.stations);
+    }
+    if ((phase === 'arriving' || phase === 'ride') && judgeResult) {
+      routeLegs.push({ from: baseStations, to: minimapCurrent, tier: judgeResult.tier });
+    }
+  }
+  const mapExpanded = phase === 'arriving' || phase === 'ride' || phase === 'arrived';
   const editionBadge = isUnlimited
     ? 'UNLIMITED'
     : edition === 'next-stop-europe'
@@ -694,31 +706,21 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
         )}
 
         {!isUnlimited && (
-          <div className="hidden xl:block absolute right-5 bottom-5 pointer-events-none">
-            <JourneyMinimap
-              answeredTiers={answeredTiers}
+          <div className="absolute right-3 bottom-[150px] xl:right-5 xl:bottom-5 z-[5] pointer-events-none">
+            <RouteMap
+              edition={edition}
+              legs={routeLegs}
+              position={minimapCurrent}
+              trainTier={judgeResult?.tier ?? currentRun.attempts[currentRun.attempts.length - 1]?.tier ?? 'COMMON'}
               questionNumber={questionNumber}
               totalQuestions={dailyPrompts.length}
-              currentStation={minimapCurrent}
-              stationName={currentStationInfo.name}
+              expanded={mapExpanded}
             />
           </div>
         )}
 
         {/* Bottom Zone: Input OR Tier Reveal OR Arrival Card */}
         <div className="w-full max-w-xl mx-auto pointer-events-auto">
-          {!isUnlimited && (
-            <div className="xl:hidden mb-2 pointer-events-none">
-              <JourneyMinimap
-                compact
-                answeredTiers={answeredTiers}
-                questionNumber={questionNumber}
-                totalQuestions={dailyPrompts.length}
-                currentStation={minimapCurrent}
-                stationName={currentStationInfo.name}
-              />
-            </div>
-          )}
           {phase === 'prompt' && (
             <form
               onSubmit={(e) => {
