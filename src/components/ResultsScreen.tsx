@@ -10,6 +10,8 @@ import {
   type GameEdition,
 } from '../games/next-stop/types';
 import {
+  computeBellCurveStats,
+  generateSimulatedBellCurve,
   submitAndFetchDailyDistribution,
   type DailyDistributionResult,
 } from '../services/scoreDistribution';
@@ -28,6 +30,9 @@ interface ResultsScreenProps {
   onOpenStats: () => void;
   onPlayUnlimited?: () => void;
   onOpenEurope?: () => void;
+  /** A practice round from unlimited play: nothing is saved or submitted. */
+  practice?: boolean;
+  practiceRound?: number;
 }
 
 export const ResultsScreen: React.FC<ResultsScreenProps> = ({
@@ -38,6 +43,8 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
   onOpenStats,
   onPlayUnlimited,
   onOpenEurope,
+  practice = false,
+  practiceRound = 1,
 }) => {
   const europeOwned = isEuropeUnlocked();
   const [countdown, setCountdown] = useState(() =>
@@ -58,6 +65,14 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
   useEffect(() => {
     let active = true;
     setLoadingDist(true);
+    if (practice) {
+      // Practice rounds are compared with a simulated crowd and never recorded.
+      const buckets = generateSimulatedBellCurve(edition, `practice-${practiceRound}`, run.totalScore);
+      const stats = computeBellCurveStats(buckets, run.totalScore);
+      setDistribution({ buckets, totalPlayers: stats.totalPlayers, simulated: true, percentileBeat: stats.percentileBeat, playerBucket: stats.playerBucket });
+      setLoadingDist(false);
+      return;
+    }
     submitAndFetchDailyDistribution(edition, run.dateKey, run.totalScore)
       .then((res) => {
         if (active) {
@@ -71,7 +86,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
     return () => {
       active = false;
     };
-  }, [edition, run.dateKey, run.totalScore]);
+  }, [edition, run.dateKey, run.totalScore, practice, practiceRound]);
 
   const titleText =
     edition === 'next-stop-europe' ? 'NEXT STOP EUROPE' : 'NEXT STOP';
@@ -87,7 +102,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
         <div className="n64-panel-warm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="text-[11px] font-pixel text-[#ffb000] mb-1">
-              {titleText} · END OF LINE · {run.dateKey}
+              {practice ? `PRACTICE ROUND ${practiceRound} · END OF LINE` : `${titleText} · END OF LINE · ${run.dateKey}`}
             </p>
             <h1 className="text-lg sm:text-2xl font-pixel text-[#f2ebdd] leading-snug">
               <span className="text-[#ffb000] tabular-nums whitespace-nowrap">
@@ -103,6 +118,17 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
             </p>
           </div>
 
+          {practice ? (
+            <button
+              type="button"
+              onClick={onPlayUnlimited}
+              data-testid="next-practice-round-btn"
+              className="n64-btn bg-[#ffb000] text-[#1e1e24] px-5 py-3 text-xs font-pixel flex items-center justify-center gap-2 cursor-pointer whitespace-nowrap shrink-0"
+            >
+              <InfinityIcon className="w-4 h-4" />
+              PLAY ANOTHER ROUND
+            </button>
+          ) : (
           <div className="bg-[#16161b] border-2 border-[#3a3a44] px-4 py-2.5 text-center shrink-0">
             <div className="text-[10px] text-[#9a9386]">NEXT TRAINS IN</div>
             <div
@@ -112,9 +138,10 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
               {countdown}
             </div>
           </div>
+          )}
         </div>
 
-        {edition === 'next-stop' && isUnlimitedOpen() && onPlayUnlimited && (
+        {!practice && edition === 'next-stop' && isUnlimitedOpen() && onPlayUnlimited && (
           <div
             className="n64-panel border-[#ffb000] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             data-testid="unlimited-today-banner"
@@ -122,7 +149,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
             <div>
               <p className="text-sm font-pixel text-[#ffb000]">{hasUnlimitedPass() ? 'YOU HAVE AN UNLIMITED PASS' : 'UNLIMITED PLAY IS ON TODAY'}</p>
               <p className="text-xs text-[#c9c1b2] mt-1">
-                Keep answering new questions for as long as you like. Your daily score stays as it is.
+                Play extra rounds of 5 new questions, as many as you like. Your daily score stays as it is.
               </p>
             </div>
             <button
@@ -245,7 +272,7 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
                 className="n64-btn bg-[#ffb000] text-[#1e1e24] px-5 py-3 text-xs font-pixel flex items-center gap-2 cursor-pointer whitespace-nowrap"
               >
                 <InfinityIcon className="w-4 h-4" />
-                {isUnlimitedOpen() ? 'KEEP PLAYING · UNLIMITED' : 'DEV: UNLIMITED MODE'}
+                {practice ? 'PLAY ANOTHER ROUND' : isUnlimitedOpen() ? 'KEEP PLAYING · UNLIMITED' : 'DEV: UNLIMITED MODE'}
               </button>
             )}
           </div>

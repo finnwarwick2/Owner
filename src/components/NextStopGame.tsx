@@ -100,13 +100,34 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     );
   }, [saveData, dateKey, dailyPrompts]);
 
-  // Isolated in-memory state for Dev Unlimited Mode
-  const [unlimitedDeck, setUnlimitedDeck] = useState(() =>
-    createUnlimitedPromptDeck(PROMPT_BANK, Date.now()),
-  );
-  const [unlimitedIdx, setUnlimitedIdx] = useState(0);
-  const [unlimitedAttempts, setUnlimitedAttempts] = useState<PromptAttempt[]>([]);
-  const [unlimitedStations, setUnlimitedStations] = useState(0);
+  // Unlimited = practice rounds of 5, played exactly like the daily game but
+  // kept in memory only (never saved, never sent to the crowd chart).
+  const [practiceSeed] = useState(() => Date.now());
+  const [practiceRound, setPracticeRound] = useState(0);
+  const [practiceAttempts, setPracticeAttempts] = useState<PromptAttempt[]>([]);
+  const practicePrompts = useMemo(() => {
+    const dailyIds = new Set(dailyPrompts.map((p) => p.id));
+    const pool = PROMPT_BANK.filter((p) => !dailyIds.has(p.id)); // no spoilers for today
+    const perDeck = Math.floor(pool.length / 5);
+    const cycle = Math.floor(practiceRound / perDeck);
+    const deck = createUnlimitedPromptDeck(pool, practiceSeed + cycle * 7919);
+    const start = (practiceRound % perDeck) * 5;
+    return deck.slice(start, start + 5);
+  }, [dailyPrompts, practiceRound, practiceSeed]);
+  const practiceRun: DailyRunState = useMemo(() => {
+    const totalStations = Math.min(
+      MAX_DAILY_STATIONS,
+      practiceAttempts.reduce((sum, a) => sum + a.stations, 0),
+    );
+    return {
+      dateKey,
+      promptIds: practicePrompts.map((p) => p.id),
+      attempts: practiceAttempts,
+      completed: practiceAttempts.length >= practicePrompts.length,
+      totalStations,
+      totalScore: totalStations * POINTS_PER_STATION,
+    };
+  }, [dateKey, practicePrompts, practiceAttempts]);
 
   const [phase, setPhase] = useState<GamePhase>(() =>
     isUnlimited ? 'prompt' : currentRun.completed ? 'results' : 'prompt',
@@ -134,13 +155,11 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     unlimited: boolean;
   } | null>(null);
 
-  const promptIdx = isUnlimited
-    ? unlimitedIdx
-    : Math.min(currentRun.attempts.length, dailyPrompts.length - 1);
-  const activePrompt = isUnlimited
-    ? unlimitedDeck[unlimitedIdx % Math.max(1, unlimitedDeck.length)]
-    : dailyPrompts[promptIdx];
-  const baseStations = isUnlimited ? unlimitedStations : currentRun.totalStations;
+  const run = isUnlimited ? practiceRun : currentRun;
+  const roundPrompts = isUnlimited ? practicePrompts : dailyPrompts;
+  const promptIdx = Math.min(run.attempts.length, roundPrompts.length - 1);
+  const activePrompt = roundPrompts[promptIdx];
+  const baseStations = run.totalStations;
   const hasCanvas = unlocked && phase !== 'results' && phase !== 'unlimited_summary';
 
   useEffect(() => {
@@ -225,10 +244,8 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
           };
 
           if (pending.unlimited) {
-            const nextStations = pending.startStation + spec.stations;
-            setUnlimitedAttempts((prev) => [...prev, attempt]);
-            setUnlimitedStations(nextStations);
-            setLiveStationFloat(nextStations);
+            setPracticeAttempts((prev) => [...prev, attempt]);
+            setLiveStationFloat(Math.min(MAX_DAILY_STATIONS, pending.startStation + spec.stations));
           } else {
             const nextSave = recordPromptAttempt(
               loadNextStopSave(edition),
@@ -259,7 +276,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     setJudgeResult(null);
     setLiveStationFloat(baseStations);
     submittingRef.current = false;
-    sceneRef.current?.resetToPlatform(baseStations, edition, isUnlimited);
+    sceneRef.current?.resetToPlatform(baseStations, edition, false);
     const id = window.setTimeout(() => {
       inputRef.current?.focus();
     }, 60);
@@ -310,7 +327,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
           result.tier,
           baseStations,
           edition,
-          isUnlimited,
+          false,
         );
       }, 850);
     },
@@ -337,34 +354,24 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     if (!canUseUnlimited) return;
     soundEngine.playUiClick();
     soundEngine.stopWind();
-    setUnlimitedDeck(createUnlimitedPromptDeck(PROMPT_BANK, Date.now()));
-    setUnlimitedIdx(0);
-    setUnlimitedAttempts([]);
-    setUnlimitedStations(0);
+    if (playMode === 'unlimited') setPracticeRound((r) => r + 1);
+    setPracticeAttempts([]);
     setLiveStationFloat(0);
     setJudgeResult(null);
     setPlayMode('unlimited');
     setPhase('prompt');
-  }, [canUseUnlimited]);
+  }, [canUseUnlimited, playMode]);
 
   const handleEndUnlimitedRun = useCallback(() => {
     soundEngine.playUiClick();
     soundEngine.stopWind();
-    setPhase('unlimited_summary');
-  }, []);
+    onExitToHub();
+  }, [onExitToHub]);
 
   const handleAdvanceAfterArrival = useCallback(() => {
     soundEngine.playUiClick();
     if (isUnlimited) {
-      setUnlimitedIdx((prev) => {
-        const next = prev + 1;
-        if (next >= unlimitedDeck.length) {
-          setUnlimitedDeck(createUnlimitedPromptDeck(PROMPT_BANK, Date.now() + next));
-          return 0;
-        }
-        return next;
-      });
-      setPhase('prompt');
+      setPhase(practiceAttempts.length >= practicePrompts.length ? 'results' : 'prompt');
       return;
     }
 
@@ -376,7 +383,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     } else {
       setPhase('prompt');
     }
-  }, [dateKey, edition, isUnlimited, unlimitedDeck.length]);
+  }, [dateKey, edition, isUnlimited, practiceAttempts.length, practicePrompts.length]);
 
   // Move straight on to the next question (or the results) after arriving.
   useEffect(() => {
@@ -423,7 +430,9 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
       <ResultsScreen
         key="results-view"
         edition={edition}
-        run={currentRun}
+        run={run}
+        practice={isUnlimited}
+        practiceRound={practiceRound + 1}
         profile={profile}
         onBackToHub={onExitToHub}
         onOpenStats={() => onOpenProfileStats('stats')}
@@ -435,127 +444,6 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     );
   }
 
-  if (phase === 'unlimited_summary') {
-    const unlimitedStationInfo = getStationInfo(edition, unlimitedStations, true);
-    const unlimitedScore = unlimitedStations * POINTS_PER_STATION;
-    return (
-      <div
-        key="unlimited-summary-view"
-        className="fixed inset-0 z-20 overflow-y-auto bg-[#1e1e24]/95 p-4 sm:p-6"
-        data-testid="unlimited-summary-screen"
-      >
-        <div className="max-w-4xl mx-auto flex flex-col gap-4 pb-8">
-          <div className="n64-panel-warm p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="text-[11px] font-pixel text-[#ffb000] mb-1 flex items-center gap-1.5">
-                <InfinityIcon className="w-3.5 h-3.5" />
-                NEXT STOP · UNLIMITED
-              </p>
-              <h1 className="text-lg sm:text-2xl font-pixel text-[#f2ebdd] leading-snug">
-                <span className="text-[#ffb000] tabular-nums">
-                  {unlimitedStations} STATIONS
-                </span>{' '}
-                ·{' '}
-                <span className="text-[#ffb000] tabular-nums">
-                  {unlimitedScore} PTS
-                </span>
-              </h1>
-              <p className="text-xs text-[#c9c1b2] mt-1 tabular-nums">
-                Reached #{String(unlimitedStationInfo.index).padStart(2, '0')}{' '}
-                {unlimitedStationInfo.name} · {unlimitedAttempts.length} questions played
-              </p>
-            </div>
-
-            <div className="bg-[#16161b] border-2 border-[#3a3a44] px-4 py-2.5 text-center shrink-0">
-              <div className="text-[10px] text-[#ffb000] font-pixel">BONUS PLAY</div>
-              <div className="text-[11px] text-[#9a9386] mt-1">
-                Daily score untouched
-              </div>
-            </div>
-          </div>
-
-          <RouteMinimap
-            edition={edition}
-            baseStations={unlimitedStations}
-            currentStation={unlimitedStations}
-            variant="expanded"
-            unlimited
-          />
-
-          {unlimitedAttempts.length > 0 && (
-            <div className="flex flex-col gap-2.5">
-              {unlimitedAttempts.map((att, idx) => {
-                const spec = TRAIN_SPECS[att.tier];
-                return (
-                  <div
-                    key={`${att.promptId}-${idx}`}
-                    className="n64-panel p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 text-[10px] text-[#9a9386]">
-                        <span className="font-pixel text-[#ffb000]">#{idx + 1}</span>
-                        <span>{att.category}</span>
-                        <span aria-hidden="true">·</span>
-                        <span className="truncate">{att.promptText}</span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-baseline gap-2">
-                        <span className="text-sm font-bold text-[#f2ebdd]">
-                          {att.answer ? `"${att.answer}"` : '(Timed Out)'}
-                        </span>
-                        <span className="text-xs text-[#c9c1b2]">{att.reason}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 border-t sm:border-t-0 border-[#3a3a44] pt-2 sm:pt-0">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-block w-3 h-3 border border-[#0e0e12]"
-                          style={{ backgroundColor: spec.accentHex }}
-                        />
-                        <span className="text-xs font-pixel text-[#f2ebdd] whitespace-nowrap">
-                          {spec.trainName}
-                        </span>
-                      </div>
-                      <div className="text-right tabular-nums whitespace-nowrap">
-                        <span className="text-xs font-pixel text-[#ffb000]">
-                          +{att.stations} STN
-                        </span>
-                        <span className="text-xs text-[#ffb000] ml-2 font-pixel">
-                          (+{att.points} PTS)
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onExitToHub}
-              className="n64-btn bg-[#3a3a44] text-[#f2ebdd] px-5 py-3 text-xs font-pixel flex items-center gap-2 cursor-pointer whitespace-nowrap"
-            >
-              <Home className="w-4 h-4" />
-              HOME
-            </button>
-
-            <button
-              type="button"
-              onClick={startUnlimitedRun}
-              data-testid="new-unlimited-run-btn"
-              className="n64-btn bg-[#3a3a44] text-[#f2ebdd] px-5 py-3 text-xs font-pixel flex items-center gap-2 cursor-pointer whitespace-nowrap"
-            >
-              <RotateCcw className="w-4 h-4" />
-              NEW UNLIMITED RUN
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const activeTier: RarityTier = judgeResult?.tier ?? 'COMMON';
   const activeSpec = TRAIN_SPECS[activeTier];
   const minimapBase =
@@ -563,18 +451,18 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
       ? Math.max(0, baseStations - activeSpec.stations)
       : baseStations;
   const minimapCurrent = phase === 'arrived' ? baseStations : liveStationFloat;
-  const currentStationInfo = getStationInfo(edition, minimapCurrent, isUnlimited);
-  const currentBiome = getBiomeForStation(edition, minimapCurrent, isUnlimited);
-  const answeredCount = currentRun.attempts.length;
+  const currentStationInfo = getStationInfo(edition, minimapCurrent, false);
+  const currentBiome = getBiomeForStation(edition, minimapCurrent, false);
+  const answeredCount = run.attempts.length;
   const questionNumber = Math.min(
-    dailyPrompts.length,
+    roundPrompts.length,
     Math.max(1, answeredCount + (phase === 'arrived' ? 0 : 1)),
   );
   // Legs of today's journey for the route map, plus the one being ridden now.
   const routeLegs: RouteLeg[] = [];
   {
     let at = 0;
-    for (const a of currentRun.attempts) {
+    for (const a of run.attempts) {
       routeLegs.push({ from: at, to: Math.min(MAX_DAILY_STATIONS, at + a.stations), tier: a.tier });
       at = Math.min(MAX_DAILY_STATIONS, at + a.stations);
     }
@@ -628,7 +516,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                 className="n64-btn bg-[var(--accent-dark)] text-[#ffd27a] px-3 py-2 text-[10px] font-pixel flex items-center gap-1.5 cursor-pointer"
               >
                 <Flag className="w-3.5 h-3.5" />
-                END RUN
+                EXIT PRACTICE
               </button>
             )}
 
@@ -640,8 +528,8 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                 {editionBadge}
               </span>
               {isUnlimited
-                ? `#${unlimitedAttempts.length + (phase === 'arrived' ? 0 : 1)} · ${baseStations} STN (${baseStations * POINTS_PER_STATION} PTS)`
-                : `Q${questionNumber}/${dailyPrompts.length} · ${baseStations} STN (${baseStations * POINTS_PER_STATION} PTS)`}
+                ? `R${practiceRound + 1} · Q${questionNumber}/${roundPrompts.length} · ${baseStations} STN`
+                : `Q${questionNumber}/${roundPrompts.length} · ${baseStations} STN (${baseStations * POINTS_PER_STATION} PTS)`}
             </div>
 
             {phase === 'prompt' && (
@@ -705,15 +593,15 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
           </div>
         )}
 
-        {!isUnlimited && (
+        {(
           <div className="absolute right-3 bottom-[150px] xl:right-5 xl:bottom-5 z-[5] pointer-events-none">
             <RouteMap
               edition={edition}
               legs={routeLegs}
               position={minimapCurrent}
-              trainTier={judgeResult?.tier ?? currentRun.attempts[currentRun.attempts.length - 1]?.tier ?? 'COMMON'}
+              trainTier={judgeResult?.tier ?? run.attempts[run.attempts.length - 1]?.tier ?? 'COMMON'}
               questionNumber={questionNumber}
-              totalQuestions={dailyPrompts.length}
+              totalQuestions={roundPrompts.length}
               expanded={mapExpanded}
             />
           </div>
@@ -849,11 +737,11 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                   data-testid="next-prompt-btn"
                   className="n64-btn bg-[#ffb000] text-[#1e1e24] px-5 py-2.5 text-xs font-pixel cursor-pointer min-h-[44px]"
                 >
-                  {isUnlimited
-                    ? 'NEXT TRAIN'
-                    : answeredCount >= dailyPrompts.length
-                      ? 'VIEW CROWDED TRAIN RESULTS'
-                      : `NEXT TRAIN · Q${answeredCount + 1}/${dailyPrompts.length}`}
+                  {answeredCount >= roundPrompts.length
+                    ? isUnlimited
+                      ? 'SEE THIS ROUND\'S RESULTS'
+                      : 'VIEW CROWDED TRAIN RESULTS'
+                    : `NEXT TRAIN · Q${answeredCount + 1}/${roundPrompts.length}`}
                 </button>
                 {isUnlimited && (
                   <button
@@ -861,7 +749,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                     onClick={handleEndUnlimitedRun}
                     className="n64-btn bg-[#2a2a32] text-[#f2ebdd] px-4 py-2.5 text-xs font-pixel cursor-pointer min-h-[44px]"
                   >
-                    END RUN
+                    EXIT PRACTICE
                   </button>
                 )}
               </div>
