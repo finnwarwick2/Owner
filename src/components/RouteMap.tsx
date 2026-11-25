@@ -125,6 +125,26 @@ function Prop({ biome, p, colour }: { biome: BiomeId; p: Prop; colour: boolean }
           <circle cx={0} cy={-2} r={4.2} fill={colour ? PAL.treeLight : 'none'} stroke={colour ? PAL.tree : sk} strokeWidth={1} />
         </g>
       );
+    case 'desert':
+      return (
+        <g transform={`translate(${p.x} ${p.y}) scale(${k})`} fill={colour ? '#3f7f45' : 'none'} stroke={colour ? '#2a5e34' : sk} strokeWidth={0.9} strokeLinejoin="round">
+          <path d="M-1.2 5 V-6 Q0 -7.5 1.2 -6 V5 Z" />
+          <path d="M-1.2 0 H-3.6 V-3.5 Q-3 -4.6 -2.4 -3.5 V-1.2 H-1.2" />
+          <path d="M1.2 1.5 H3.4 V-1.8 Q4 -2.9 4.6 -1.8 V2.7 H1.2" />
+        </g>
+      );
+    case 'city':
+      return (
+        <g transform={`translate(${p.x} ${p.y}) scale(${k})`}>
+          <rect x={-3} y={-9} width={6} height={13} fill={colour ? '#4a3f66' : 'none'} stroke={colour ? '#2a2140' : sk} strokeWidth={0.9} />
+          <rect x={3} y={-4} width={4} height={8} fill={colour ? '#5a4f73' : 'none'} stroke={colour ? '#2a2140' : sk} strokeWidth={0.9} />
+          {colour && (
+            <g fill="#ffd27a">
+              <rect x={-1.8} y={-7} width={1.2} height={1.2} /><rect x={0.6} y={-4} width={1.2} height={1.2} /><rect x={-1.8} y={-1} width={1.2} height={1.2} /><rect x={4.4} y={-2} width={1.2} height={1.2} />
+            </g>
+          )}
+        </g>
+      );
     case 'towns':
       return (
         <g transform={`translate(${p.x} ${p.y}) scale(${k})`}>
@@ -234,7 +254,13 @@ export const RouteMap: React.FC<RouteMapProps> = ({
 
         {/* Explored: colour revealed around the track you've travelled */}
         <g mask={`url(#reveal-${uid})`}>
-          <rect width={W} height={H} fill={PAL.land} />
+          {bands.map(({ biome }, i) => {
+            // Each region's revealed land takes its own colour
+            const top = i === bands.length - 1 ? 0 : pointAt(biome.maxStation + 0.5).y;
+            const bottom = i === 0 ? H : pointAt(biome.minStation - 0.5).y;
+            const land = { desert: '#f0c27e', mountains: '#8fc47a', city: '#b9b0cc' }[biome.id as string] ?? PAL.land;
+            return <rect key={biome.id} x={0} y={top} width={W} height={bottom - top} fill={land} />;
+          })}
           <rect width={W} height={H} fill={`url(#grain-${uid})`} opacity={0.18} />
           {bands.map(({ biome, props }) => props.map((p, i) => <Prop key={`${biome.id}-c${i}`} biome={biome.id} p={p} colour />))}
         </g>
@@ -243,7 +269,7 @@ export const RouteMap: React.FC<RouteMapProps> = ({
         )}
 
         {/* Region names */}
-        {bands.slice(0, -1).map(({ biome, label }) => (
+        {bands.filter(({ biome }) => biome.id !== 'terminus').map(({ biome, label }) => (
           <text
             key={biome.id}
             x={label.x}

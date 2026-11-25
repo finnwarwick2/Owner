@@ -76,9 +76,6 @@ const _mat4 = new THREE.Matrix4();
 const _pos = new THREE.Vector3();
 const _quat = new THREE.Quaternion();
 const _scale = new THREE.Vector3();
-const _targetSky = new THREE.Color();
-const _targetFog = new THREE.Color();
-const _targetGround = new THREE.Color();
 
 // Fixed sunny-countryside look for every station, in the game's charcoal / amber / cream palette.
 const SUNNY = {
@@ -96,6 +93,25 @@ function periodicHeight(x: number, z: number, period: number, seed: number): num
     Math.sin(3 * k * x + seed * 0.6 - z * 0.22) * 0.18 +
     Math.sin(5 * k * x + seed * 2.3 + z * 0.4) * 0.08
   );
+}
+
+type RegionId = 'countryside' | 'desert' | 'mountains' | 'city';
+
+/** Sky haze, ground and light colours for each region of the line. */
+const REGION_LOOKS: Record<RegionId, {
+  fog: string; fogNear: number; fogFar: number;
+  ground: string; nearGround: string;
+  hemiSky: string; hemiGround: string; hemiIntensity: number;
+  sun: string; sunIntensity: number;
+}> = {
+  countryside: { fog: '#cfe6f5', fogNear: 40, fogFar: 230, ground: '#6aae4f', nearGround: '#6fae52', hemiSky: '#e4f3ff', hemiGround: '#7a9a55', hemiIntensity: 1.3, sun: '#fff3d6', sunIntensity: 1.75 },
+  desert: { fog: '#f6b073', fogNear: 45, fogFar: 240, ground: '#d99a55', nearGround: '#e3aa66', hemiSky: '#ffd6a8', hemiGround: '#a8642e', hemiIntensity: 1.25, sun: '#ffb36b', sunIntensity: 1.7 },
+  mountains: { fog: '#d6e8f7', fogNear: 45, fogFar: 260, ground: '#3e7a3e', nearGround: '#4f8f45', hemiSky: '#e6f2ff', hemiGround: '#4a6b3a', hemiIntensity: 1.3, sun: '#fff8e8', sunIntensity: 1.8 },
+  city: { fog: '#7a4f86', fogNear: 40, fogFar: 230, ground: '#4a4458', nearGround: '#5a5566', hemiSky: '#ffb38a', hemiGround: '#3a2f55', hemiIntensity: 1.15, sun: '#ff9e7a', sunIntensity: 1.5 },
+};
+
+function regionForBiome(id: string): RegionId {
+  return id === 'desert' || id === 'mountains' || id === 'city' ? id : 'countryside';
 }
 
 function toBackground(obj: THREE.Object3D) {
@@ -131,6 +147,13 @@ export class NextStopSceneController {
   private sceneryItems: SceneryItem[] = [];
   private birds: { group: THREE.Object3D; wingL: THREE.Object3D; wingR: THREE.Object3D; phase: number; vx: number; baseY: number }[] = [];
   private waterfallTextures: THREE.Texture[] = [];
+  private regionGroups = {} as Record<RegionId, THREE.Group>;
+  private region: RegionId = 'countryside';
+  private buildTarget!: THREE.Object3D;
+  private nearGround!: THREE.Mesh;
+  private hemiLight!: THREE.HemisphereLight;
+  private sunLight!: THREE.DirectionalLight;
+  private showcaseRegionIdx = 0;
   private showcase = false;
   private showcaseX = -26;
   private showcaseTierIdx = 0;
@@ -197,10 +220,12 @@ export class NextStopSceneController {
 
     const hemi = new THREE.HemisphereLight('#e4f3ff', '#7a9a55', 1.3);
     hemi.layers.enableAll();
+    this.hemiLight = hemi;
     this.scene.add(hemi);
     const sun = new THREE.DirectionalLight('#fff3d6', 1.75);
     sun.position.set(9, 18, 12);
     sun.layers.enableAll();
+    this.sunLight = sun;
     this.scene.add(sun);
 
     this.homePlatformGroup = new THREE.Group();
@@ -250,11 +275,24 @@ export class NextStopSceneController {
     );
     nearGround.rotation.x = -Math.PI / 2;
     nearGround.position.set(0, -0.02, 7);
+    this.nearGround = nearGround;
     this.scene.add(nearGround);
 
-    this.buildSunnySky();
-    this.buildCountryside();
-    this.buildWildlife();
+    // Each region of the line has its own sky, terrain and props.
+    const regions: Array<[RegionId, () => void]> = [
+      ['countryside', () => { this.buildSunnySky(); this.buildCountryside(); this.buildWildlife(); }],
+      ['desert', () => this.buildDesert()],
+      ['mountains', () => this.buildMountains()],
+      ['city', () => this.buildCity()],
+    ];
+    for (const [id, build] of regions) {
+      const group = new THREE.Group();
+      group.visible = id === 'countryside';
+      this.buildTarget = group;
+      build();
+      this.regionGroups[id] = group;
+      this.scene.add(group);
+    }
 
     // Track ballast & continuous steel rails running along X (left <-> right)
     const ballast = new THREE.Mesh(
@@ -377,7 +415,7 @@ export class NextStopSceneController {
     sky.position.set(0, 20, -125);
     sky.renderOrder = -1;
     toBackground(sky);
-    this.scene.add(sky);
+    this.buildTarget.add(sky);
   }
 
   /** A low-poly heightfield strip that tiles seamlessly along x. */
@@ -519,7 +557,7 @@ export class NextStopSceneController {
         const x = -W / 2 + k * W;
         tile.position.x = x;
         toBackground(tile);
-        this.scene.add(tile);
+        this.buildTarget.add(tile);
         this.sceneryItems.push({ group: tile, x, speedFactor: layer.speed, span: W * 2 });
       }
     });
@@ -558,7 +596,7 @@ export class NextStopSceneController {
       g.add(field, hedge);
       g.position.set(x, 0, z);
       toBackground(g);
-      this.scene.add(g);
+      this.buildTarget.add(g);
       this.sceneryItems.push({ group: g, x, speedFactor: 0.6, span: 100.8 });
     }
 
@@ -571,9 +609,312 @@ export class NextStopSceneController {
       obj.position.set(x, 0, z);
       obj.scale.setScalar(0.85 + (i % 3) * 0.22);
       toBackground(obj);
-      this.scene.add(obj);
+      this.buildTarget.add(obj);
       this.sceneryItems.push({ group: obj, x, speedFactor: 0.82, span: 96 });
     }
+  }
+
+  /** A painted sky backdrop: gradient bands, a sun and clouds (visible band ≈ 0.4–0.6). */
+  private buildSkyPlane(paint: (ctx: CanvasRenderingContext2D, w: number, h: number) => void) {
+    const tex = createCrispSignTexture(1024, 1024, paint);
+    const sky = new THREE.Mesh(
+      new THREE.PlaneGeometry(420, 200),
+      new THREE.MeshBasicMaterial({ map: tex, fog: false, toneMapped: false, depthWrite: false }),
+    );
+    sky.position.set(0, 20, -125);
+    sky.renderOrder = -1;
+    toBackground(sky);
+    this.buildTarget.add(sky);
+  }
+
+  /** Two terrain tiles that scroll and wrap seamlessly. */
+  private addTerrainLayer(layer: {
+    zNear: number; zFar: number; maxHeight: number; seed: number; speed: number;
+    colorAt: (t: number, h: number) => THREE.Color;
+  }) {
+    const W = 120;
+    for (let k = 0; k < 2; k++) {
+      const { mesh } = this.buildTerrainTile({ width: W, ...layer });
+      const tile = new THREE.Group();
+      tile.add(mesh);
+      const x = -W / 2 + k * W;
+      tile.position.x = x;
+      toBackground(tile);
+      this.buildTarget.add(tile);
+      this.sceneryItems.push({ group: tile, x, speedFactor: layer.speed, span: W * 2 });
+    }
+  }
+
+  /** Scatter props along the line so they scroll past and wrap. */
+  private scatter(count: number, span: number, speed: number, zMin: number, zMax: number, make: (i: number) => THREE.Object3D) {
+    for (let i = 0; i < count; i++) {
+      const obj = make(i);
+      const x = -span / 2 + (i + 0.5) * (span / count) + Math.sin(i * 12.9898) * 1.5;
+      const z = zMin + ((Math.sin(i * 78.233) + 1) / 2) * (zMax - zMin);
+      obj.position.set(x, obj.position.y, z);
+      toBackground(obj);
+      this.buildTarget.add(obj);
+      this.sceneryItems.push({ group: obj, x, speedFactor: speed, span });
+    }
+  }
+
+  // ── Region 2: the desert at sunset ──
+  private buildDesert() {
+    this.buildSkyPlane((ctx, w, h) => {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#5c1a1b');
+      g.addColorStop(0.38, '#b8361b');
+      g.addColorStop(0.47, '#f0612a');
+      g.addColorStop(0.55, '#ff9a4a');
+      g.addColorStop(0.61, '#ffc98a');
+      g.addColorStop(1, '#ffe0b5');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      const sx = w * 0.42, sy = h * 0.565;
+      const glow = ctx.createRadialGradient(sx, sy, 20, sx, sy, 130);
+      glow.addColorStop(0, 'rgba(255,236,200,0.9)');
+      glow.addColorStop(1, 'rgba(255,236,200,0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(sx - 130, sy - 130, 260, 260);
+      ctx.fillStyle = '#fff4d6';
+      ctx.beginPath(); ctx.arc(sx, sy, 34, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e8562a';
+      for (const [cx, cy, rx] of [[0.2, 0.45, 70], [0.6, 0.47, 90], [0.82, 0.44, 60], [0.35, 0.5, 50], [0.7, 0.52, 45]]) {
+        ctx.beginPath(); ctx.ellipse(w * cx, h * cy, rx, 6, 0, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#c23b22';
+      for (const [cx, cy, rx] of [[0.24, 0.455, 50], [0.64, 0.475, 60]]) {
+        ctx.beginPath(); ctx.ellipse(w * cx, h * cy + 4, rx, 3, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+    const sand = new THREE.Color('#eab06a');
+    const deepSand = new THREE.Color('#c97a3a');
+    const rust = new THREE.Color('#b5532c');
+    const darkRust = new THREE.Color('#7d321c');
+    this.addTerrainLayer({ zNear: -22, zFar: -50, maxHeight: 5, seed: 2.2, speed: 0.34, colorAt: (t, h) => sand.clone().lerp(deepSand, Math.min(1, h * 0.9 + t * 0.2)) });
+    this.addTerrainLayer({ zNear: -50, zFar: -95, maxHeight: 18, seed: 6.4, speed: 0.16, colorAt: (_t, h) => rust.clone().lerp(darkRust, Math.min(1, h * 0.8)) });
+
+    // Flat-topped mesas on the horizon
+    const mesaMat = createN64Material({ color: '#a8452a', roughness: 0.95 });
+    const mesaTop = createN64Material({ color: '#c96a3e', roughness: 0.95 });
+    this.scatter(7, 126, 0.22, -44, -60, (i) => {
+      const g = new THREE.Group();
+      const r = 4 + (i % 3) * 2;
+      const hgt = 7 + (i % 4) * 3;
+      const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.35, hgt, 7), mesaMat);
+      body.position.y = hgt / 2;
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.02, r * 1.02, 0.6, 7), mesaTop);
+      cap.position.y = hgt;
+      g.add(body, cap);
+      return g;
+    });
+
+    // Saguaro cacti, scrub and boulders near the line
+    const cactus = createN64Material({ color: '#3f7f45', roughness: 0.85 });
+    const scrub = createN64Material({ color: '#7d6a2e', roughness: 0.9 });
+    const rock = createN64Material({ color: '#9c5a35', roughness: 0.95 });
+    this.scatter(18, 96, 0.82, -7, -22, (i) => {
+      const g = new THREE.Group();
+      if (i % 3 === 2) {
+        const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.9 + (i % 2) * 0.5, 0), rock);
+        r.position.y = 0.6;
+        g.add(r);
+        const b = new THREE.Mesh(new THREE.IcosahedronGeometry(0.6, 0), scrub);
+        b.position.set(1.4, 0.4, 0.3);
+        g.add(b);
+        return g;
+      }
+      const hgt = 3 + (i % 4) * 0.7;
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, hgt, 6), cactus);
+      trunk.position.y = hgt / 2;
+      g.add(trunk);
+      for (const side of [-1, 1]) {
+        if (side === 1 && i % 2) continue;
+        const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.9, 6), cactus);
+        arm.rotation.z = Math.PI / 2;
+        arm.position.set(side * 0.6, hgt * 0.45, 0);
+        const up = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 1.2, 6), cactus);
+        up.position.set(side * 1.0, hgt * 0.45 + 0.55, 0);
+        g.add(arm, up);
+      }
+      return g;
+    });
+  }
+
+  // ── Region 3: the mountains ──
+  private buildMountains() {
+    this.buildSkyPlane((ctx, w, h) => {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#0f4c8a');
+      g.addColorStop(0.4, '#2f86cf');
+      g.addColorStop(0.52, '#6fb6ea');
+      g.addColorStop(0.6, '#bfe2f8');
+      g.addColorStop(1, '#e3f3fd');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      // dithered haze bands, like a retro sky
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      for (let y = Math.floor(h * 0.5); y < h * 0.6; y += 4) for (let x = (y / 4) % 2 ? 0 : 2; x < w; x += 4) ctx.fillRect(x, y, 2, 2);
+      const cloud = (cx: number, cy: number, k: number) => {
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, 48 * k, 10 * k, 0, 0, Math.PI * 2);
+        ctx.arc(cx - 16 * k, cy - 8 * k, 14 * k, 0, Math.PI * 2);
+        ctx.arc(cx + 8 * k, cy - 13 * k, 18 * k, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#cfe6f7';
+        ctx.beginPath(); ctx.ellipse(cx, cy + 4 * k, 44 * k, 4 * k, 0, 0, Math.PI * 2); ctx.fill();
+      };
+      cloud(w * 0.25, h * 0.44, 1);
+      cloud(w * 0.58, h * 0.42, 1.2);
+      cloud(w * 0.82, h * 0.47, 0.8);
+    });
+    const forest = new THREE.Color('#3f7f45');
+    const deepForest = new THREE.Color('#24553a');
+    const rockBlue = new THREE.Color('#6c7fa6');
+    const rockDeep = new THREE.Color('#4b5d86');
+    const snow = new THREE.Color('#f5f8ff');
+    this.addTerrainLayer({ zNear: -24, zFar: -48, maxHeight: 10, seed: 3.3, speed: 0.34, colorAt: (t, h) => forest.clone().lerp(deepForest, Math.min(1, h + t * 0.3)) });
+    this.addTerrainLayer({
+      zNear: -46, zFar: -105, maxHeight: 52, seed: 5.1, speed: 0.12,
+      colorAt: (t, h) => (h > 0.55 ? snow.clone().lerp(new THREE.Color('#dbe6fb'), t * 0.5) : h > 0.22 ? rockBlue.clone().lerp(rockDeep, (h - 0.22) * 2) : deepForest.clone().lerp(rockBlue, h * 3)),
+    });
+
+    // Dense pine forest in front of the peaks
+    const pines = ['#1f4d3a', '#2b6145', '#173d2e', '#25583f'].map((c) => createN64Material({ color: c, roughness: 0.9 }));
+    const trunkMat = createN64Material({ color: '#4a3020', roughness: 0.9 });
+    this.scatter(14, 98, 0.7, -9, -20, (i) => {
+      const g = new THREE.Group();
+      for (let k = 0; k < 5; k++) {
+        const hgt = 3.5 + ((i * 7 + k * 3) % 5) * 0.9;
+        const tree = new THREE.Group();
+        const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.2, 0.8, 5), trunkMat);
+        trunk.position.y = 0.4;
+        const lower = new THREE.Mesh(new THREE.ConeGeometry(1.1, hgt * 0.6, 6), pines[(i + k) % 4]);
+        lower.position.y = 0.6 + hgt * 0.3;
+        const upper = new THREE.Mesh(new THREE.ConeGeometry(0.75, hgt * 0.5, 6), pines[(i + k + 1) % 4]);
+        upper.position.y = 0.6 + hgt * 0.65;
+        tree.add(trunk, lower, upper);
+        tree.position.set((k - 2) * 1.5, 0, (k % 2) * -1.2);
+        g.add(tree);
+      }
+      return g;
+    });
+    // A few boulders by the track
+    const boulder = createN64Material({ color: '#7d8594', roughness: 0.95 });
+    this.scatter(8, 96, 0.82, -6, -8, (i) => {
+      const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.7 + (i % 3) * 0.35, 0), boulder);
+      r.position.y = 0.5;
+      return r;
+    });
+  }
+
+  // ── Region 4: the big city at dusk ──
+  private buildCity() {
+    this.buildSkyPlane((ctx, w, h) => {
+      const g = ctx.createLinearGradient(0, 0, 0, h);
+      g.addColorStop(0, '#1a1036');
+      g.addColorStop(0.38, '#3b1f5e');
+      g.addColorStop(0.47, '#8a2f6e');
+      g.addColorStop(0.54, '#e2566b');
+      g.addColorStop(0.6, '#ff9a6b');
+      g.addColorStop(1, '#ffc58f');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < 70; i++) {
+        ctx.fillStyle = 'rgba(255,240,220,0.8)';
+        ctx.fillRect((i * 137) % w, (h * 0.38) + ((i * 53) % Math.floor(h * 0.08)), 2, 2);
+      }
+      // Striped setting sun
+      const sx = w * 0.55, sy = h * 0.555, r = 40;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.clip();
+      const sg = ctx.createLinearGradient(0, sy - r, 0, sy + r);
+      sg.addColorStop(0, '#fff2b0');
+      sg.addColorStop(1, '#ff8a5b');
+      ctx.fillStyle = sg;
+      ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+      ctx.fillStyle = '#e2566b';
+      for (let k = 0; k < 6; k++) ctx.fillRect(sx - r, sy + 4 + k * 7, r * 2, 2 + k * 0.6);
+      ctx.restore();
+      ctx.fillStyle = '#5b2a6e';
+      for (const [cx, cy, rx] of [[0.18, 0.46, 80], [0.4, 0.43, 60], [0.78, 0.45, 90], [0.9, 0.5, 50]]) {
+        ctx.beginPath(); ctx.ellipse(w * cx, h * cy, rx, 7, 0, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    // Lit-window facades
+    const windows = (lit: string[], dark: string, seed: number) => {
+      const tex = createPixelCanvasTexture(16, 32, (ctx) => {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 16, 32);
+        let v = seed;
+        for (let y = 1; y < 32; y += 3) for (let x = 1; x < 16; x += 3) {
+          v = (v * 9301 + 49297) % 233280;
+          ctx.fillStyle = v / 233280 > 0.45 ? lit[Math.floor((v / 233280) * 10) % lit.length] : dark;
+          ctx.fillRect(x, y, 2, 2);
+        }
+      }, 2, 3);
+      tex.magFilter = THREE.NearestFilter;
+      return tex;
+    };
+    const facade = (body: string, seed: number, glow: string[]) => {
+      const win = windows(glow, '#241a3a', seed);
+      return new THREE.MeshLambertMaterial({ color: body, emissive: '#ffffff', emissiveMap: win, emissiveIntensity: 0.95, flatShading: true });
+    };
+    const farMats = [facade('#3b2f5c', 11, ['#ffd27a', '#ffb000']), facade('#2f2650', 29, ['#7ce0ff', '#ffd27a']), facade('#45346a', 47, ['#ffd27a', '#ff9e7a'])];
+    const midMats = [facade('#4a3f66', 61, ['#ffd27a', '#7ce0ff']), facade('#3a3358', 83, ['#ffe9a8', '#ffb000'])];
+    const box = (w: number, h: number, d: number, mat: THREE.Material) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+      m.position.y = h / 2;
+      return m;
+    };
+    // Far skyline of towers
+    this.scatter(22, 132, 0.18, -48, -66, (i) => {
+      const g = new THREE.Group();
+      const h = 12 + ((i * 37) % 30);
+      const w = 4 + (i % 3) * 1.5;
+      g.add(box(w, h, 4, farMats[i % 3]));
+      if (i % 4 === 0) {
+        const spire = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.2, 5, 4), createN64Material({ color: '#2a2140' }));
+        spire.position.y = h + 2.5;
+        g.add(spire);
+      }
+      if (i % 5 === 2) {
+        const top = box(w * 0.6, 4, 2.6, farMats[(i + 1) % 3]);
+        top.position.y = h + 2;
+        g.add(top);
+      }
+      return g;
+    });
+    // Mid-rise blocks
+    this.scatter(16, 112, 0.34, -26, -36, (i) => {
+      const g = new THREE.Group();
+      const h = 7 + ((i * 23) % 12);
+      g.add(box(5 + (i % 2) * 2, h, 4, midMats[i % 2]));
+      const roof = box(1.2, 1, 1.2, createN64Material({ color: '#2a2140' }));
+      roof.position.set(1, h + 0.5, 0);
+      g.add(roof);
+      return g;
+    });
+    // Low warehouses and street lamps by the line
+    const shed = createN64Material({ color: '#5a4f73', roughness: 0.9 });
+    const lampPost = createN64Material({ color: '#2a2140' });
+    const lampGlow = createN64Material({ color: '#ffe9a8', emissive: '#ffd27a', emissiveIntensity: 1 });
+    this.scatter(12, 96, 0.82, -8, -14, (i) => {
+      const g = new THREE.Group();
+      if (i % 2) {
+        const b = box(4 + (i % 3), 2.2 + (i % 2) * 0.8, 3, shed);
+        g.add(b);
+      } else {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.6, 0.15), lampPost);
+        post.position.y = 1.8;
+        const bulb = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.25, 0.4), lampGlow);
+        bulb.position.y = 3.7;
+        g.add(post, bulb);
+      }
+      return g;
+    });
   }
 
   private buildColourfulTree(i: number): THREE.Group {
@@ -664,7 +1005,7 @@ export class NextStopSceneController {
       a.rotation.y = face > 0 ? 0 : Math.PI;
       a.position.set(x, 0, z);
       toBackground(a);
-      this.scene.add(a);
+      this.buildTarget.add(a);
       this.sceneryItems.push({ group: a, x, speedFactor: 0.6, span: 100.8 });
     }
 
@@ -683,7 +1024,7 @@ export class NextStopSceneController {
       g.position.set(x, 7, -14 - (i % 3) * 5);
       g.scale.setScalar(1.3);
       toBackground(g);
-      this.scene.add(g);
+      this.buildTarget.add(g);
       const baseY = 7 + (i % 3) * 1.6;
       this.birds.push({ group: g, wingL, wingR, phase: i * 1.7, vx: (i % 2 === 0 ? 1 : -1) * (3 + (i % 3)), baseY });
     }
@@ -753,14 +1094,32 @@ export class NextStopSceneController {
 
   private applyBiomeImmediate(stationIndex: number) {
     const biome = getBiomeForStation(this.edition, stationIndex, this.loopStations);
-    void biome;
-    this.skyColor.set(SUNNY.sky);
-    this.fogColor.set(SUNNY.fog);
-    (this.groundMesh.material as THREE.MeshLambertMaterial).color.set(SUNNY.ground);
+    this.setRegion(regionForBiome(biome.id), true);
+  }
+
+  /** Swap the whole backdrop to another region of the line. */
+  private setRegion(region: RegionId, force = false) {
+    if (region === this.region && !force) return;
+    this.region = region;
+    for (const id of Object.keys(this.regionGroups) as RegionId[]) {
+      this.regionGroups[id].visible = id === region;
+    }
+    const look = REGION_LOOKS[region];
+    this.skyColor.set(look.fog);
+    this.fogColor.set(look.fog);
     this.scene.background = this.skyColor;
     if (this.scene.fog instanceof THREE.Fog) {
       this.scene.fog.color.copy(this.fogColor);
+      this.scene.fog.near = look.fogNear;
+      this.scene.fog.far = look.fogFar;
     }
+    (this.groundMesh.material as THREE.MeshLambertMaterial).color.set(look.ground);
+    (this.nearGround.material as THREE.MeshLambertMaterial).color.set(look.nearGround);
+    this.hemiLight.color.set(look.hemiSky);
+    this.hemiLight.groundColor.set(look.hemiGround);
+    this.hemiLight.intensity = look.hemiIntensity;
+    this.sunLight.color.set(look.sun);
+    this.sunLight.intensity = look.sunIntensity;
   }
 
   private setPlatformSign(holder: THREE.Group, stationIndex: number) {
@@ -858,6 +1217,9 @@ export class NextStopSceneController {
       this.showcaseX = -26;
       this.showcaseTierIdx++;
       this.buildShowcaseTrain();
+      const tour: RegionId[] = ['countryside', 'desert', 'mountains', 'city'];
+      this.showcaseRegionIdx = (this.showcaseRegionIdx + 1) % tour.length;
+      this.setRegion(tour[this.showcaseRegionIdx]);
     }
     this.trainWrapper.position.set(this.showcaseX, 0.14 + Math.sin(elapsed * 22) * 0.02, -1.6);
     if (this.activeTrain) {
@@ -1146,26 +1508,9 @@ export class NextStopSceneController {
         );
       }
 
-      // Smooth biome transition
-      const biome = getBiomeForStation(
-        this.edition,
-        clampedStationFloat,
-        this.loopStations,
-      );
-      void biome;
-      _targetSky.set(SUNNY.sky);
-      _targetFog.set(SUNNY.fog);
-      _targetGround.set(SUNNY.ground);
-      this.skyColor.lerp(_targetSky, dt * 2.5);
-      this.fogColor.lerp(_targetFog, dt * 2.5);
-      (this.groundMesh.material as THREE.MeshLambertMaterial).color.lerp(
-        _targetGround,
-        dt * 2.5,
-      );
-      this.scene.background = this.skyColor;
-      if (this.scene.fog instanceof THREE.Fog) {
-        this.scene.fog.color.copy(this.fogColor);
-      }
+      // Cross into the next region as the train passes its first station
+      const biome = getBiomeForStation(this.edition, clampedStationFloat, this.loopStations);
+      this.setRegion(regionForBiome(biome.id));
 
       // Steam / energy trail particles streaming left (-X)
       this.smokeTimer += dt;
