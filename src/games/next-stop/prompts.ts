@@ -2,6 +2,7 @@ import type { TriviaPrompt } from './types';
 import { NICHE_PROMPTS, tierPrompt } from './promptsNiche';
 import { EXTRA_PROMPTS } from './promptsExtra';
 import { FUN_PROMPTS } from './promptsFun';
+import { CLASSIC_EXTRA } from './promptsClassicExtra';
 
 function p(
   id: string,
@@ -203,6 +204,6 @@ const pick = (bank: TriviaPrompt[], ids: string[]) =>
 
 export const PROMPT_BANK: TriviaPrompt[] = [
   ...FUN_PROMPTS.map((q) => tierPrompt(q)),
-  ...pick(CLASSICS, CLASSIC_IDS).map((q) => tierPrompt(q)),
+  ...pick(CLASSICS, CLASSIC_IDS).map((q) => tierPrompt(q, CLASSIC_EXTRA[q.id] ?? {})),
   ...pick(NICHE_PROMPTS, NICHE_IDS),
 ];

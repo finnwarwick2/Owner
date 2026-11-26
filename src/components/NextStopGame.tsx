@@ -27,6 +27,7 @@ import {
   type NextStopSaveData,
   type PromptAttempt,
   type RarityTier,
+  TIER_COLORS,
   TIER_LABELS,
 } from '../games/next-stop/types';
 import { isDevMode, isEuropeUnlocked } from '../services/stripeCheckout';
@@ -36,6 +37,7 @@ import { EuropePaywallScreen } from './EuropePaywallScreen';
 import { ResultsScreen } from './ResultsScreen';
 import { RouteMinimap } from './RouteMinimap';
 import { RouteMap, type RouteLeg } from './RouteMap';
+import { FlapText } from './FlapText';
 
 type GamePhase =
   | 'prompt'
@@ -321,7 +323,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
       window.setTimeout(() => {
         setPhase('arriving');
         sceneRef.current?.triggerTrainSequence(result.tier, baseStations, edition, false);
-      }, 850);
+      }, 1700);
     },
     [activePrompt, baseStations, edition, isUnlimited],
   );
@@ -426,12 +428,6 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
     }
   }, [dateKey, edition, isUnlimited, practiceAttempts.length, practicePrompts.length]);
 
-  // Move straight on to the next question (or the results) after arriving.
-  useEffect(() => {
-    if (phase !== 'arrived') return;
-    const id = window.setTimeout(() => handleAdvanceAfterArrival(), 1700);
-    return () => window.clearTimeout(id);
-  }, [phase, handleAdvanceAfterArrival]);
 
   useEffect(() => {
     if (correction) useCorrectionRef.current?.focus();
@@ -573,20 +569,6 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                 : `Q${questionNumber}/${roundPrompts.length} · ${baseStations} STN (${baseStations * POINTS_PER_STATION} PTS)`}
             </div>
 
-            {phase === 'prompt' && (
-              <div
-                data-testid="station-clock"
-                className={`n64-panel px-3 py-2 text-xs sm:text-sm font-pixel tabular-nums ${
-                  secondsLeft <= 4
-                    ? 'text-[var(--accent)] border-[var(--accent)]'
-                    : secondsLeft <= 8
-                      ? 'text-[#ffb000] border-[#ffb000]'
-                      : 'text-[#ffb000]'
-                }`}
-              >
-                {String(secondsLeft).padStart(2, '0')}S
-              </div>
-            )}
 
             {(phase === 'ride' || phase === 'arriving') && (
               <div className="n64-panel px-3 py-2 text-[11px] font-pixel text-[#f2ebdd] flex items-center gap-2">
@@ -616,7 +598,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
         </div>
 
         {/* Hanging Retro Flip-Style Departure Board (Prompt / Suspense / Reveal) */}
-        {(phase === 'prompt' || phase === 'suspense' || phase === 'reveal') && (
+        {(phase === 'prompt' || phase === 'suspense' || phase === 'reveal' || phase === 'arriving') && (
           <div className="w-full max-w-2xl mx-auto mt-1 mb-auto">
             <div
               className="led-board px-4 py-3 text-center"
@@ -624,11 +606,23 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
             >
               <div className="led-row led-text text-sm sm:text-base tracking-wide mb-1.5 px-2">
                 {phase === 'suspense'
-                  ? 'FLIPPING DEPARTURE BOARD...'
-                  : `#${String(currentStationInfo.index).padStart(2, '0')} ${currentStationInfo.name.toUpperCase()} · ${activePrompt?.category ?? 'DAILY'}`}
+                  ? 'CHECKING THE TIMETABLE...'
+                  : (phase === 'reveal' || phase === 'arriving') && judgeResult
+                    ? (currentAttemptRef.current?.answer ? `"${currentAttemptRef.current.answer.toUpperCase()}"` : 'NO ANSWER')
+                    : `#${String(currentStationInfo.index).padStart(2, '0')} ${currentStationInfo.name.toUpperCase()} · ${activePrompt?.category ?? 'DAILY'}`}
               </div>
               <div className="led-row led-text text-xl sm:text-3xl leading-snug px-2 py-1">
-                {phase === 'suspense' ? scrambleText : activePrompt?.prompt}
+                {phase === 'suspense' ? (
+                  scrambleText
+                ) : (phase === 'reveal' || phase === 'arriving') && judgeResult ? (
+                  <FlapText
+                    key={`${promptIdx}-${judgeResult.tier}`}
+                    text={`${TIER_LABELS[judgeResult.tier].toUpperCase()} · +${activeSpec.stations} STN`}
+                    color={TIER_COLORS[judgeResult.tier]}
+                  />
+                ) : (
+                  activePrompt?.prompt
+                )}
               </div>
             </div>
           </div>
@@ -665,6 +659,7 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
           )}
 
           {phase === 'prompt' && (
+            <>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -737,6 +732,15 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                 autoComplete="off"
                 className="flex-1 bg-[#16161b] border-2 border-[#4a4a55] px-3.5 py-2.5 font-sans font-semibold text-sm sm:text-base text-[#f2ebdd] placeholder:text-[#9a9386] focus:outline-none focus:border-[#ffb000]"
               />
+              <div
+                data-testid="station-clock"
+                className={`flex items-center justify-center px-3 min-h-[44px] bg-[#16161b] border-2 font-pixel text-sm tabular-nums ${
+                  secondsLeft <= 5 ? 'text-[#e5484d] border-[#e5484d]' : 'text-[#ffb000] border-[#4a4a55]'
+                }`}
+                aria-label={`${secondsLeft} seconds left`}
+              >
+                {String(secondsLeft).padStart(2, '0')}S
+              </div>
               <button
                 type="submit"
                 disabled={checking}
@@ -745,6 +749,10 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                 {checking ? 'CHECKING…' : 'BOARD TRAIN'}
               </button>
             </form>
+            <div className="h-2.5 bg-[#16161b] border-x-4 border-b-4 border-[#0e0e12]" aria-hidden="true" data-testid="time-bar">
+              <div key={`bar-${promptIdx}-${practiceRound}`} className="time-bar-fill h-full" style={{ animationDuration: `${PROMPT_TIME_SECONDS}s` }} />
+            </div>
+            </>
           )}
 
           {(phase === 'reveal' || phase === 'arriving' || phase === 'ride') && judgeResult && (
@@ -753,12 +761,6 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
               data-testid="tier-reveal-banner"
             >
               <div className="flex items-center justify-center gap-2.5 flex-wrap">
-                <span
-                  className="px-2.5 py-1 text-[11px] font-pixel text-[#1e1e24]"
-                  style={{ backgroundColor: activeSpec.accentHex }}
-                >
-                  {TIER_LABELS[judgeResult.tier].toUpperCase()}
-                </span>
                 <span className="text-sm sm:text-base font-pixel text-[#f2ebdd]">
                   {activeSpec.trainName}
                 </span>
@@ -796,8 +798,8 @@ export const NextStopGame: React.FC<NextStopGameProps> = ({
                   {answeredCount >= roundPrompts.length
                     ? isUnlimited
                       ? 'SEE THIS ROUND\'S RESULTS'
-                      : 'VIEW CROWDED TRAIN RESULTS'
-                    : `NEXT TRAIN · Q${answeredCount + 1}/${roundPrompts.length}`}
+                      : "SEE TODAY'S RESULTS"
+                    : 'CONTINUE THE JOURNEY'}
                 </button>
                 {isUnlimited && (
                   <button

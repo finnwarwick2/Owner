@@ -291,3 +291,18 @@
   75% { transform: translateX(-3px); }
 }
 @media (prefers-reduced-motion: reduce) { .wrong-shake { animation: none; } }
+
+/* Countdown bar under the answer box: shrinks from right to left */
+.time-bar-fill {
+  width: 100%;
+  background: #ffb000;
+  animation-name: time-bar;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+@keyframes time-bar {
+  0% { width: 100%; background: #ffb000; }
+  70% { background: #ffb000; }
+  75% { background: #e5484d; }
+  100% { width: 0%; background: #e5484d; }
+}

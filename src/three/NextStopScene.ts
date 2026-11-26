@@ -1256,6 +1256,7 @@ export class NextStopSceneController {
     const station = getStationInfo(this.edition, stationIndex, this.loopStations);
     const biome = getBiomeForStation(this.edition, stationIndex, this.loopStations);
     const sign = buildStationSignboard(station.index, station.name, biome.accentHex);
+    sign.scale.setScalar(0.62); // smaller, so it doesn't compete with the question
     holder.add(sign);
   }
 
